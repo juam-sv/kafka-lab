@@ -1,4 +1,4 @@
-# Kafka Financial Transaction PoC
+# Kafka Lab
 
 A high-performance Proof of Concept (PoC) demonstrating a real-time data pipeline for financial transactions using Apache Kafka, Python, and PostgreSQL.
 
