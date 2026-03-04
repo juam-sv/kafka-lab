@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transactions</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0f1117; color: #e1e4e8; min-height: 100vh; }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+  h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 20px; color: #f0f0f0; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 20px; }
+  .toolbar label { font-size: 0.8rem; color: #8b949e; margin-right: 4px; }
+  .toolbar select, .toolbar input { background: #161b22; border: 1px solid #30363d; color: #e1e4e8; padding: 6px 10px; border-radius: 6px; font-size: 0.85rem; }
+  .toolbar select:focus, .toolbar input:focus { outline: none; border-color: #58a6ff; }
+
+  .toggle-group { display: flex; align-items: center; gap: 6px; margin-left: auto; }
+  .toggle { position: relative; width: 40px; height: 22px; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle .slider { position: absolute; inset: 0; background: #30363d; border-radius: 11px; transition: 0.2s; }
+  .toggle .slider::before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: #8b949e; border-radius: 50%; transition: 0.2s; }
+  .toggle input:checked + .slider { background: #238636; }
+  .toggle input:checked + .slider::before { transform: translateX(18px); background: #fff; }
+
+  .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.8rem; color: #8b949e; }
+  .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+  .badge.hit { background: #1a5d2a; color: #56d364; }
+  .badge.miss { background: #5a3420; color: #f0883e; }
+
+  table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; }
+  th, td { padding: 10px 14px; text-align: left; font-size: 0.83rem; border-bottom: 1px solid #21262d; }
+  th { background: #1c2128; color: #8b949e; font-weight: 600; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.5px; cursor: pointer; user-select: none; white-space: nowrap; }
+  th:hover { color: #58a6ff; }
+  th .arrow { margin-left: 4px; font-size: 0.65rem; }
+  tr:hover td { background: #1c2128; }
+
+  .status { padding: 3px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+  .status.approved { background: #1a5d2a; color: #56d364; }
+  .status.suspicious { background: #5a3420; color: #f0883e; }
+
+  .amount { font-variant-numeric: tabular-nums; }
+  .amount.high { color: #f0883e; }
+
+  .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; margin-top: 16px; }
+  .pagination button { background: #21262d; border: 1px solid #30363d; color: #e1e4e8; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+  .pagination button:hover:not(:disabled) { border-color: #58a6ff; color: #58a6ff; }
+  .pagination button:disabled { opacity: 0.4; cursor: default; }
+  .pagination button.active { background: #238636; border-color: #238636; }
+  .pagination span { font-size: 0.8rem; color: #8b949e; }
+
+  .empty { text-align: center; padding: 40px; color: #8b949e; }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Financial Transactions</h1>
+
+  <div class="toolbar">
+    <div>
+      <label>Status</label>
+      <select id="filterStatus">
+        <option value="">All</option>
+        <option value="APPROVED">Approved</option>
+        <option value="SUSPICIOUS">Suspicious</option>
+      </select>
+    </div>
+    <div>
+      <label>From</label>
+      <input type="datetime-local" id="dateFrom">
+    </div>
+    <div>
+      <label>To</label>
+      <input type="datetime-local" id="dateTo">
+    </div>
+    <div>
+      <label>Per page</label>
+      <select id="perPage">
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+      </select>
+    </div>
+    <div class="toggle-group">
+      <label>Auto-refresh</label>
+      <label class="toggle">
+        <input type="checkbox" id="autoRefresh">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <div class="meta">
+    <span id="info"></span>
+    <span id="cacheStatus"></span>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th data-col="id">ID</th>
+        <th data-col="transaction_id">Txn ID</th>
+        <th data-col="source_account">Source</th>
+        <th data-col="target_account">Target</th>
+        <th data-col="amount">Amount</th>
+        <th data-col="currency">Currency</th>
+        <th data-col="txn_type">Type</th>
+        <th data-col="status">Status</th>
+        <th data-col="created_at">Date</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div class="pagination" id="pagination"></div>
+</div>
+
+<script>
+const API = '/api/transactions';
+let state = { page: 1, perPage: 20, status: '', dateFrom: '', dateTo: '', sortBy: 'created_at', sortOrder: 'desc' };
+let refreshTimer = null;
+
+const $ = id => document.getElementById(id);
+
+async function load() {
+  const params = new URLSearchParams({
+    page: state.page,
+    per_page: state.perPage,
+    sort_by: state.sortBy,
+    sort_order: state.sortOrder,
+  });
+  if (state.status) params.set('status', state.status);
+  if (state.dateFrom) params.set('date_from', new Date(state.dateFrom).toISOString());
+  if (state.dateTo) params.set('date_to', new Date(state.dateTo).toISOString());
+
+  try {
+    const res = await fetch(`${API}?${params}`);
+    const json = await res.json();
+    render(json);
+  } catch (e) {
+    $('tbody').innerHTML = '<tr><td colspan="9" class="empty">Failed to load</td></tr>';
+  }
+}
+
+function render(json) {
+  const { data, total, page, pages, cached } = json;
+
+  $('info').textContent = `${total} transactions — page ${page} of ${pages || 1}`;
+  $('cacheStatus').innerHTML = cached
+    ? '<span class="badge hit">CACHE HIT</span>'
+    : '<span class="badge miss">CACHE MISS</span>';
+
+  updateHeaders();
+
+  if (!data.length) {
+    $('tbody').innerHTML = '<tr><td colspan="9" class="empty">No transactions found</td></tr>';
+    $('pagination').innerHTML = '';
+    return;
+  }
+
+  $('tbody').innerHTML = data.map(r => `<tr>
+    <td>${r.id}</td>
+    <td title="${r.transaction_id}">${r.transaction_id.slice(0, 8)}…</td>
+    <td>${r.source_account}</td>
+    <td>${r.target_account}</td>
+    <td class="amount${r.amount >= 4000 ? ' high' : ''}">${Number(r.amount).toLocaleString('en', { minimumFractionDigits: 2 })} ${r.currency}</td>
+    <td>${r.currency}</td>
+    <td>${r.txn_type}</td>
+    <td><span class="status ${r.status.toLowerCase()}">${r.status}</span></td>
+    <td>${new Date(r.created_at).toLocaleString()}</td>
+  </tr>`).join('');
+
+  renderPagination(page, pages);
+}
+
+function updateHeaders() {
+  document.querySelectorAll('th[data-col]').forEach(th => {
+    const col = th.dataset.col;
+    const label = th.textContent.replace(/[▲▼]/g, '').trim();
+    if (col === state.sortBy) {
+      th.innerHTML = `${label} <span class="arrow">${state.sortOrder === 'asc' ? '▲' : '▼'}</span>`;
+    } else {
+      th.textContent = label;
+    }
+  });
+}
+
+function renderPagination(current, total) {
+  if (total <= 1) { $('pagination').innerHTML = ''; return; }
+
+  let btns = [];
+  btns.push(`<button ${current === 1 ? 'disabled' : ''} onclick="goPage(${current - 1})">← Prev</button>`);
+
+  let pages = [];
+  if (total <= 7) {
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else {
+    pages = [1];
+    if (current > 3) pages.push('...');
+    for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) pages.push(i);
+    if (current < total - 2) pages.push('...');
+    pages.push(total);
+  }
+
+  pages.forEach(p => {
+    if (p === '...') { btns.push('<span>…</span>'); return; }
+    btns.push(`<button class="${p === current ? 'active' : ''}" onclick="goPage(${p})">${p}</button>`);
+  });
+
+  btns.push(`<button ${current === total ? 'disabled' : ''} onclick="goPage(${current + 1})">Next →</button>`);
+  $('pagination').innerHTML = btns.join('');
+}
+
+function goPage(p) { state.page = p; load(); }
+
+document.querySelectorAll('th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (state.sortBy === col) {
+      state.sortOrder = state.sortOrder === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortBy = col;
+      state.sortOrder = 'asc';
+    }
+    state.page = 1;
+    load();
+  });
+});
+
+$('filterStatus').addEventListener('change', e => { state.status = e.target.value; state.page = 1; load(); });
+$('dateFrom').addEventListener('change', e => { state.dateFrom = e.target.value; state.page = 1; load(); });
+$('dateTo').addEventListener('change', e => { state.dateTo = e.target.value; state.page = 1; load(); });
+$('perPage').addEventListener('change', e => { state.perPage = parseInt(e.target.value); state.page = 1; load(); });
+
+$('autoRefresh').addEventListener('change', e => {
+  if (e.target.checked) {
+    refreshTimer = setInterval(load, 5000);
+  } else {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
+  }
+});
+
+load();
+</script>
+</body>
+</html>

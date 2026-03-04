@@ -78,3 +78,29 @@ services:
         condition: service_healthy
       postgres:
         condition: service_healthy
+
+  memcached:
+    image: memcached:1.6-alpine
+    container_name: memcached
+    command: memcached -m 64
+
+  api:
+    build: ./api
+    container_name: api
+    environment:
+      DATABASE_URL: 'postgres://user:password@postgres:5432/finance_db'
+      MEMCACHED_HOST: 'memcached'
+      CACHE_TTL: '120'
+    depends_on:
+      postgres:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - api
