@@ -25,16 +25,16 @@ services:
       retries: 5
 
   postgres:
-    image: postgres:latest
+    image: postgres:16-alpine
     container_name: postgres
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: finance_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d finance_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -60,8 +60,8 @@ services:
     build: ./app
     container_name: producer
     environment:
-      KAFKA_BROKER: 'broker:9092'
-      MSG_PER_SEC: 5
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      MSG_PER_SEC: ${MSG_PER_SEC}
     depends_on:
       broker:
         condition: service_healthy
@@ -71,8 +71,8 @@ services:
     container_name: consumer
     command: python consumer.py
     environment:
-      KAFKA_BROKER: 'broker:9092'
-      DATABASE_URL: 'postgres://user:password@postgres:5432/finance_db'
+      KAFKA_BROKER: ${KAFKA_BROKER}
+      DATABASE_URL: ${DATABASE_URL}
     depends_on:
       broker:
         condition: service_healthy
