@@ -1,8 +1,8 @@
 FROM nginx:alpine
 
-# Use the existing nginx user and group
-# But ensure permissions are correct for common nginx directories
-RUN touch /var/run/nginx.pid && \
+# Upgrade packages to fix vulnerabilities (like CVE-2026-25646 in libpng)
+RUN apk update && apk upgrade && \
+    touch /var/run/nginx.pid && \
     chown -R nginx:nginx /var/run/nginx.pid /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

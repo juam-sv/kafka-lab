@@ -36,8 +36,8 @@ jobs:
 
       - name: Safety SCA
         run: |
-          # Check all requirements files
-          find . -name "requirements.txt" -exec safety check -r {} +
+          # Check each requirements file individually
+          find . -name "requirements.txt" -exec safety check -r {} \;
 
   trivy-config:
     name: Trivy IaC & Secret Scan
