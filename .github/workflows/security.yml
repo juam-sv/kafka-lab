@@ -32,10 +32,12 @@ jobs:
         run: ruff check .
 
       - name: Bandit SAST
-        run: bandit -r app/ -ll
+        run: bandit -r . -ll
 
       - name: Safety SCA
-        run: safety check -r app/requirements.txt
+        run: |
+          # Check each requirements file individually
+          find . -name "requirements.txt" -exec safety check -r {} \;
 
   trivy-config:
     name: Trivy IaC & Secret Scan
@@ -65,17 +67,26 @@ jobs:
   trivy-container:
     name: Trivy Container Scan
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - image_name: kafka-lab-app
+            context: ./app
+          - image_name: kafka-lab-api
+            context: ./api
+          - image_name: kafka-lab-frontend
+            context: ./frontend
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Build Docker Image
-        run: docker build -t kafka-lab-app:latest ./app
+        run: docker build -t ${{ matrix.image_name }}:latest ${{ matrix.context }}
 
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: 'kafka-lab-app:latest'
+          image-ref: '${{ matrix.image_name }}:latest'
           format: 'table'
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
