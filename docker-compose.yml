@@ -88,9 +88,9 @@ services:
     build: ./api
     container_name: api
     environment:
-      DATABASE_URL: 'postgres://user:password@postgres:5432/finance_db'
+      DATABASE_URL: ${DATABASE_URL}
       MEMCACHED_HOST: 'memcached'
-      CACHE_TTL: '120'
+      CACHE_TTL: ${CACHE_TTL:-120}
     depends_on:
       postgres:
         condition: service_healthy
