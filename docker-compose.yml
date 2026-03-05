@@ -82,7 +82,7 @@ services:
   memcached:
     image: memcached:1.6-alpine
     container_name: memcached
-    command: memcached -m 64
+    command: memcached -m 64 -vv
 
   api:
     build: ./api

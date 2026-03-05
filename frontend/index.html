@@ -26,9 +26,12 @@
   .toggle input:checked + .slider::before { transform: translateX(18px); background: #fff; }
 
   .meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.8rem; color: #8b949e; }
+  .cache-info { display: flex; align-items: center; gap: 8px; }
   .badge { padding: 2px 8px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
   .badge.hit { background: #1a5d2a; color: #56d364; }
   .badge.miss { background: #5a3420; color: #f0883e; }
+  .cache-time { font-size: 0.7rem; color: #8b949e; }
+  tr.cached-row td { border-left: 2px solid #238636; }
 
   table { width: 100%; border-collapse: collapse; background: #161b22; border-radius: 8px; overflow: hidden; }
   th, td { padding: 10px 14px; text-align: left; font-size: 0.83rem; border-bottom: 1px solid #21262d; }
@@ -119,7 +122,14 @@
 
 <script>
 const API = '/api/transactions';
-let state = { page: 1, perPage: 20, status: '', dateFrom: '', dateTo: '', sortBy: 'created_at', sortOrder: 'desc' };
+
+function defaultDateFrom() {
+  const d = new Date();
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 16);
+}
+
+let state = { page: 1, perPage: 20, status: '', dateFrom: defaultDateFrom(), dateTo: '', sortBy: 'created_at', sortOrder: 'desc' };
 let refreshTimer = null;
 
 const $ = id => document.getElementById(id);
@@ -145,12 +155,17 @@ async function load() {
 }
 
 function render(json) {
-  const { data, total, page, pages, cached } = json;
+  const { data, total, page, pages, cached, cached_at } = json;
 
   $('info').textContent = `${total} transactions — page ${page} of ${pages || 1}`;
-  $('cacheStatus').innerHTML = cached
+
+  let cacheHtml = cached
     ? '<span class="badge hit">CACHE HIT</span>'
     : '<span class="badge miss">CACHE MISS</span>';
+  if (cached && cached_at) {
+    cacheHtml += ` <span class="cache-time">snapshot from ${new Date(cached_at).toLocaleTimeString()}</span>`;
+  }
+  $('cacheStatus').innerHTML = `<span class="cache-info">${cacheHtml}</span>`;
 
   updateHeaders();
 
@@ -160,7 +175,8 @@ function render(json) {
     return;
   }
 
-  $('tbody').innerHTML = data.map(r => `<tr>
+  const rowClass = cached ? ' class="cached-row"' : '';
+  $('tbody').innerHTML = data.map(r => `<tr${rowClass}>
     <td>${r.id}</td>
     <td title="${r.transaction_id}">${r.transaction_id.slice(0, 8)}…</td>
     <td>${r.source_account}</td>
@@ -243,6 +259,9 @@ $('autoRefresh').addEventListener('change', e => {
   }
 });
 
+$('dateFrom').value = state.dateFrom;
+$('autoRefresh').checked = true;
+refreshTimer = setInterval(load, 5000);
 load();
 </script>
 </body>

@@ -2,7 +2,7 @@ import json
 import logging
 import math
 import os
-from datetime import datetime
+from datetime import UTC, datetime
 
 import psycopg2
 import psycopg2.extras
@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from psycopg2 import sql
 from pymemcache.client.base import Client as MemcacheClient
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -72,7 +71,12 @@ def list_transactions(
         try:
             cached = mc.get(cache_key)
             if cached:
-                return json.loads(cached)
+                logger.info(f"Cache HIT for key: {cache_key}")
+                data = json.loads(cached)
+                data["cached"] = True
+                data["cached_at"] = data.get("cached_at")
+                return data
+            logger.info(f"Cache MISS for key: {cache_key}")
         except Exception as e:
             logger.error(f"Cache retrieval error: {e}")
 
@@ -123,6 +127,7 @@ def list_transactions(
             elif hasattr(v, "as_tuple"):
                 r[k] = float(v)
 
+    now = datetime.now(UTC).isoformat()
     result = {
         "data": rows,
         "total": total,
@@ -130,13 +135,14 @@ def list_transactions(
         "per_page": per_page,
         "pages": math.ceil(total / per_page) if per_page else 1,
         "cached": False,
+        "cached_at": now,
     }
 
     if mc:
         try:
             mc.set(cache_key, json.dumps(result), expire=CACHE_TTL)
+            logger.info(f"Cache SET for key: {cache_key} (TTL: {CACHE_TTL}s)")
         except Exception as e:
             logger.error(f"Cache storage error: {e}")
 
-    result["cached"] = False
     return result
