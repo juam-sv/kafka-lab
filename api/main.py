@@ -2,7 +2,7 @@ import json
 import logging
 import math
 import os
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import psycopg2
 import psycopg2.extras
@@ -127,7 +127,7 @@ def list_transactions(
             elif hasattr(v, "as_tuple"):
                 r[k] = float(v)
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     result = {
         "data": rows,
         "total": total,
