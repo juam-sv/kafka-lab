@@ -2,11 +2,18 @@ import json
 import os
 
 import psycopg2
+from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 from confluent_kafka import Consumer
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 DB_URL = os.getenv("DATABASE_URL")
+
+
+def oauth_cb(config):
+    token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
+    return token, expiry_ms / 1000
 
 
 @retry(stop=stop_after_attempt(10), wait=wait_fixed(3))
@@ -18,6 +25,9 @@ conf = {
     "bootstrap.servers": KAFKA_BROKER,
     "group.id": "finance-group",
     "auto.offset.reset": "earliest",
+    "security.protocol": "SASL_SSL",
+    "sasl.mechanism": "OAUTHBEARER",
+    "oauth_cb": oauth_cb,
 }
 
 c = Consumer(conf)
