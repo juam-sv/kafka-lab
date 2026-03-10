@@ -1,4 +1,4 @@
 confluent-kafka==2.13.2
-psycopg2-binary==2.9.11
+oracledb==2.5.0
 tenacity==9.1.4
 aws-msk-iam-sasl-signer-python==1.0.2
