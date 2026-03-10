@@ -38,6 +38,7 @@ Real-time financial transaction pipeline PoC using Apache Kafka, Python, Postgre
 - All Python code must pass Bandit security checks (`bandit -r . -ll`)
 - Docker images are built from `app/`, `api/`, and `frontend/` directories
 - OrbStack labels used for local domain routing (e.g., `control-center.kafka-poc.orb.local`)
+- Always create a new branch for new features, and commit it.
 
 ## Directory Layout
 

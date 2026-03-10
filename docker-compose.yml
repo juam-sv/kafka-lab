@@ -24,20 +24,23 @@ services:
       timeout: 10s
       retries: 5
 
-  postgres:
-    image: postgres:16-alpine
-    container_name: postgres
+  oracle:
+    image: gvenzl/oracle-xe:21-slim
+    container_name: oracle
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      ORACLE_PASSWORD: ${ORACLE_SYS_PASSWORD}
+      APP_USER: ${DB_USER}
+      APP_USER_PASSWORD: ${DB_PASSWORD}
     volumes:
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/container-entrypoint-initdb.d/init.sql
+    ports:
+      - "1521:1521"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      timeout: 10s
+      retries: 20
+      start_period: 30s
 
   control-center:
     image: confluentinc/cp-enterprise-control-center:7.8.0
@@ -72,11 +75,13 @@ services:
     command: python consumer.py
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER}
-      DATABASE_URL: ${DATABASE_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DSN: ${DB_DSN}
     depends_on:
       broker:
         condition: service_healthy
-      postgres:
+      oracle:
         condition: service_healthy
 
   memcached:
@@ -88,11 +93,13 @@ services:
     build: ./api
     container_name: api
     environment:
-      DATABASE_URL: ${DATABASE_URL}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DSN: ${DB_DSN}
       MEMCACHED_HOST: 'memcached'
       CACHE_TTL: ${CACHE_TTL:-120}
     depends_on:
-      postgres:
+      oracle:
         condition: service_healthy
       memcached:
         condition: service_started

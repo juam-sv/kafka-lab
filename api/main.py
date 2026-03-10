@@ -3,12 +3,11 @@ import logging
 import math
 import os
 from datetime import UTC, datetime
+from decimal import Decimal
 
-import psycopg2
-import psycopg2.extras
+import oracledb
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from psycopg2 import sql
 from pymemcache.client.base import Client as MemcacheClient
 
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DB_URL = os.getenv("DATABASE_URL", "postgres://user:password@postgres:5432/finance_db")
+DB_USER = os.getenv("DB_USER", "finance_user")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "Finance123")
+DB_DSN = os.getenv("DB_DSN", "oracle:1521/XEPDB1")
 MEMCACHED_HOST = os.getenv("MEMCACHED_HOST", "memcached")
 MEMCACHED_PORT = int(os.getenv("MEMCACHED_PORT", "11211"))
 CACHE_TTL = int(os.getenv("CACHE_TTL", "120"))
@@ -31,7 +32,7 @@ VALID_SORT_COLUMNS = {"amount", "created_at", "status", "txn_type", "currency"}
 
 
 def get_db():
-    return psycopg2.connect(DB_URL)
+    return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
 
 
 def get_cache():
@@ -44,6 +45,11 @@ def get_cache():
     except Exception as e:
         logger.warning(f"Failed to connect to Memcached: {e}")
         return None
+
+
+def rows_to_dicts(cursor, rows):
+    cols = [d[0].lower() for d in cursor.description]
+    return [dict(zip(cols, row)) for row in rows]
 
 
 @app.get("/transactions")
@@ -81,42 +87,38 @@ def list_transactions(
             logger.error(f"Cache retrieval error: {e}")
 
     conditions = []
-    params = []
+    params = {}
 
     if status:
-        conditions.append(sql.SQL("status = %s"))
-        params.append(status)
+        conditions.append("status = :status")
+        params["status"] = status
     if date_from:
-        conditions.append(sql.SQL("created_at >= %s"))
-        params.append(date_from)
+        conditions.append("created_at >= TO_TIMESTAMP_TZ(:date_from, 'YYYY-MM-DD')")
+        params["date_from"] = date_from
     if date_to:
-        conditions.append(sql.SQL("created_at <= %s"))
-        params.append(date_to)
+        conditions.append("created_at <= TO_TIMESTAMP_TZ(:date_to, 'YYYY-MM-DD')")
+        params["date_to"] = date_to
 
-    where = sql.SQL("")
-    if conditions:
-        where = sql.SQL("WHERE ") + sql.SQL(" AND ").join(conditions)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+
+    offset = (page - 1) * per_page
+    params["per_page"] = per_page
+    params["offset"] = offset
 
     conn = get_db()
     try:
-        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+        cur = conn.cursor()
 
-        count_query = sql.SQL("SELECT COUNT(*) as cnt FROM transactions {}").format(
-            where
-        )
-        cur.execute(count_query, params)
-        total = cur.fetchone()["cnt"]
+        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)
+        total = cur.fetchone()[0]
 
-        offset = (page - 1) * per_page
-        select_query = sql.SQL(
-            "SELECT * FROM transactions {} ORDER BY {} {} LIMIT %s OFFSET %s"
-        ).format(
-            where,
-            sql.Identifier(sort_by),
-            sql.SQL(sort_order),
+        cur.execute(
+            f"SELECT * FROM transactions {where} "
+            f"ORDER BY {sort_by} {sort_order} "
+            f"OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY",
+            params,
         )
-        cur.execute(select_query, params + [per_page, offset])
-        rows = cur.fetchall()
+        rows = rows_to_dicts(cur, cur.fetchall())
     finally:
         conn.close()
 
@@ -124,7 +126,7 @@ def list_transactions(
         for k, v in r.items():
             if isinstance(v, datetime):
                 r[k] = v.isoformat()
-            elif hasattr(v, "as_tuple"):
+            elif isinstance(v, Decimal):
                 r[k] = float(v)
 
     now = datetime.now(UTC).isoformat()
