@@ -58,14 +58,40 @@ Producer → Kafka (financial.transactions) → Consumer → Oracle DB → API (
 - **API** (`api/main.py`): `GET /transactions` with query params: `page`, `per_page`, `sort_by`, `sort_order`, `status`, `date_from`, `date_to`. Memcached caching with key-per-query-combination.
 - **Frontend** (`frontend/index.html`): Dark-themed dashboard. Auto-refresh every 5s (toggleable). Highlights suspicious transactions.
 
-## Kubernetes
+## Kubernetes (Helm)
 
-Manifests in `k8s/` target AWS EKS with MSK and RDS Oracle. Includes KEDA auto-scaling for consumer based on Kafka lag.
+Deployment is managed via a Helm chart in `helm/kafka-lab/`. The chart packages all resources (deployments, services, configmap, secrets, jobs, KEDA) into a single parameterized chart.
 
 ```bash
 ic-poc-eks                    # configure kubeconfig for the EKS cluster (run first)
-kubectl apply -f k8s/         # deploy all manifests
+
+# Lint the chart
+helm lint helm/kafka-lab/
+
+# Render templates locally (dry-run)
+helm template my-release helm/kafka-lab/ \
+  --set database.password=CHANGEME \
+  --set database.dsn=host:1521/ORCL \
+  --set kafka.brokers=broker:9098 \
+  --set cache.host=memcached
+
+# Install
+helm install kafka-lab helm/kafka-lab/ \
+  --set database.password=CHANGEME \
+  --set database.dsn=host:1521/ORCL \
+  --set kafka.brokers=b-1.msk:9098,b-2.msk:9098 \
+  --set cache.host=memcached.endpoint
+
+# Upgrade
+helm upgrade kafka-lab helm/kafka-lab/ -f values-prod.yaml
+
+# Uninstall
+helm uninstall kafka-lab
 ```
+
+Key values to provide at deploy time (empty defaults): `kafka.brokers`, `database.password`, `database.dsn`, `cache.host`. See `helm/kafka-lab/values.yaml` for all options.
+
+Legacy raw manifests remain in `k8s/` (gitignored) for reference.
 
 ## Key Conventions
 

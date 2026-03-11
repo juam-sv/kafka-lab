@@ -9,5 +9,6 @@ ENV/
 env.bak/
 venv.bak/
 .DS_Store
-k8s
+k8s/
 GEMINI.md
+services/*
