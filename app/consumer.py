@@ -2,20 +2,15 @@ import json
 import os
 
 import oracledb
-from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 from confluent_kafka import Consumer
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
+KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_DSN = os.getenv("DB_DSN")
-
-
-def oauth_cb(config):
-    token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
-    return token, expiry_ms / 1000
 
 
 @retry(stop=stop_after_attempt(10), wait=wait_fixed(3))
@@ -27,10 +22,20 @@ conf = {
     "bootstrap.servers": KAFKA_BROKER,
     "group.id": "finance-group",
     "auto.offset.reset": "earliest",
-    "security.protocol": "SASL_SSL",
-    "sasl.mechanism": "OAUTHBEARER",
-    "oauth_cb": oauth_cb,
 }
+
+if KAFKA_USE_MSK:
+    from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+
+    def oauth_cb(config):
+        token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
+        return token, expiry_ms / 1000
+
+    conf.update({
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "oauth_cb": oauth_cb,
+    })
 
 c = Consumer(conf)
 c.subscribe(["financial.transactions"])

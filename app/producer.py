@@ -5,25 +5,29 @@ import time
 import uuid
 from datetime import UTC, datetime
 
-from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 from confluent_kafka import Producer
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
+KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 MSG_PER_SEC = int(os.getenv("MSG_PER_SEC", "5"))
 
+kafka_conf = {"bootstrap.servers": KAFKA_BROKER}
 
-def oauth_cb(config):
-    token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
-    return token, expiry_ms / 1000
+if KAFKA_USE_MSK:
+    from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
 
+    def oauth_cb(config):
+        token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
+        return token, expiry_ms / 1000
 
-p = Producer({
-    "bootstrap.servers": KAFKA_BROKER,
-    "security.protocol": "SASL_SSL",
-    "sasl.mechanism": "OAUTHBEARER",
-    "oauth_cb": oauth_cb,
-})
+    kafka_conf.update({
+        "security.protocol": "SASL_SSL",
+        "sasl.mechanism": "OAUTHBEARER",
+        "oauth_cb": oauth_cb,
+    })
+
+p = Producer(kafka_conf)
 crypto_random = random.SystemRandom()
 
 
