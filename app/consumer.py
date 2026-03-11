@@ -1,9 +1,13 @@
 import json
+import logging
 import os
 
 import oracledb
 from confluent_kafka import Consumer
-from tenacity import retry, stop_after_attempt, wait_fixed
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
 KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
@@ -13,8 +17,13 @@ DB_PASSWORD = os.getenv("DB_PASSWORD")
 DB_DSN = os.getenv("DB_DSN")
 
 
-@retry(stop=stop_after_attempt(10), wait=wait_fixed(3))
+@retry(
+    stop=stop_after_attempt(20),
+    wait=wait_fixed(5),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+)
 def get_db_conn():
+    logger.info(f"Connecting to Oracle DSN: {DB_DSN} as {DB_USER}")
     return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
 
 
