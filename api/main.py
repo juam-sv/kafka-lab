@@ -108,11 +108,11 @@ def list_transactions(
     try:
         cur = conn.cursor()
 
-        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608
+        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
         total = cur.fetchone()[0]
 
         cur.execute(
-            f"SELECT * FROM transactions {where} "  # noqa: S608
+            f"SELECT * FROM transactions {where} "  # noqa: S608  # nosec B608
             f"ORDER BY {sort_by} {sort_order} "
             f"OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY",
             page_params,
