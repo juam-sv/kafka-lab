@@ -49,7 +49,7 @@ def get_cache():
 
 def rows_to_dicts(cursor, rows):
     cols = [d[0].lower() for d in cursor.description]
-    return [dict(zip(cols, row)) for row in rows]
+    return [dict(zip(cols, row, strict=True)) for row in rows]
 
 
 @app.get("/transactions")
@@ -102,21 +102,20 @@ def list_transactions(
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
 
     offset = (page - 1) * per_page
-    params["per_page"] = per_page
-    params["offset"] = offset
+    page_params = {**params, "per_page": per_page, "offset": offset}
 
     conn = get_db()
     try:
         cur = conn.cursor()
 
-        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)
+        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608
         total = cur.fetchone()[0]
 
         cur.execute(
-            f"SELECT * FROM transactions {where} "
+            f"SELECT * FROM transactions {where} "  # noqa: S608
             f"ORDER BY {sort_by} {sort_order} "
             f"OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY",
-            params,
+            page_params,
         )
         rows = rows_to_dicts(cur, cur.fetchall())
     finally:

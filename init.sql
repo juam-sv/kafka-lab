@@ -1,4 +1,6 @@
-CREATE TABLE transactions (
+ALTER SESSION SET CONTAINER = XEPDB1;
+
+CREATE TABLE finance_user.transactions (
     id             NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     transaction_id VARCHAR2(100) NOT NULL,
     source_account VARCHAR2(100) NOT NULL,
