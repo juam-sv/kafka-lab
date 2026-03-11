@@ -16,12 +16,26 @@ spec:
         {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "api") | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.api.serviceAccount.roleName }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 100
+        runAsGroup: 100
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: api
           image: {{ .Values.image.registry }}:{{ .Values.api.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           ports:
             - containerPort: {{ .Values.api.port }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           env:
             - name: DB_USER
               valueFrom:
@@ -37,7 +51,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ include "kafka-lab.oracleSecretName" . }}
-                  key: DB_DSN
+                  key: DB_READER_DSN
             - name: MEMCACHED_HOST
               valueFrom:
                 secretKeyRef:
@@ -58,3 +72,6 @@ spec:
               port: {{ .Values.api.port }}
             initialDelaySeconds: {{ .Values.api.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.api.readinessProbe.periodSeconds }}
+      volumes:
+        - name: tmp
+          emptyDir: {}

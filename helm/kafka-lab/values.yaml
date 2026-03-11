@@ -18,6 +18,10 @@ database:
   user: admin
   password: ""
   dsn: ""
+  # Multi-region: separate DSN for writes (consumer) and reads (API)
+  # If not set, both default to the value of 'dsn'
+  writerDsn: ""
+  readerDsn: ""
 
 cache:
   host: ""

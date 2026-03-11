@@ -16,11 +16,25 @@ spec:
         {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "producer") | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.producer.serviceAccount.roleName }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: producer
           image: {{ .Values.image.registry }}:{{ .Values.producer.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
           command: ["python", "producer.py"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
           env:
             - name: KAFKA_BROKER
               valueFrom:
@@ -41,3 +55,6 @@ spec:
               value: {{ .Values.producer.msgPerSec | quote }}
           resources:
             {{- toYaml .Values.producer.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}

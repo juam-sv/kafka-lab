@@ -59,3 +59,17 @@ API secret name.
 {{- define "kafka-lab.apiSecretName" -}}
 {{ include "kafka-lab.fullname" . }}-api
 {{- end }}
+
+{{/*
+Database writer DSN (used by consumer). Falls back to database.dsn if writerDsn is empty.
+*/}}
+{{- define "kafka-lab.writerDsn" -}}
+{{- if .Values.database.writerDsn }}{{ .Values.database.writerDsn }}{{- else }}{{ .Values.database.dsn }}{{- end }}
+{{- end }}
+
+{{/*
+Database reader DSN (used by API). Falls back to database.dsn if readerDsn is empty.
+*/}}
+{{- define "kafka-lab.readerDsn" -}}
+{{- if .Values.database.readerDsn }}{{ .Values.database.readerDsn }}{{- else }}{{ .Values.database.dsn }}{{- end }}
+{{- end }}
