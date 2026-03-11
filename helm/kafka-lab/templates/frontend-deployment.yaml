@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-frontend
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "frontend") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "frontend") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.frontend.serviceAccount.roleName }}
+      containers:
+        - name: frontend
+          image: {{ .Values.image.registry }}:{{ .Values.frontend.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.frontend.port }}
+          resources:
+            {{- toYaml .Values.frontend.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.frontend.readinessProbe.path }}
+              port: {{ .Values.frontend.port }}
+            initialDelaySeconds: {{ .Values.frontend.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.frontend.readinessProbe.periodSeconds }}

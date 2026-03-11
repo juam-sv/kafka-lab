@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-init-oracle
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: {{ .Values.jobs.ttlSecondsAfterFinished }}
+  backoffLimit: {{ .Values.jobs.initOracle.backoffLimit }}
+  template:
+    spec:
+      serviceAccountName: {{ .Values.consumer.serviceAccount.roleName }}
+      restartPolicy: OnFailure
+      containers:
+        - name: init-oracle
+          image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - sh
+            - -c
+            - |
+              pip install oracledb && python << 'PYEOF'
+              import os
+              import oracledb
+
+              db_user = os.getenv("DB_USER")
+              db_password = os.getenv("DB_PASSWORD")
+              db_dsn = os.getenv("DB_DSN")
+
+              conn = oracledb.connect(user=db_user, password=db_password, dsn=db_dsn)
+              cursor = conn.cursor()
+
+              try:
+                  cursor.execute("""
+                      CREATE TABLE transactions (
+                          id             NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+                          transaction_id VARCHAR2(100) NOT NULL,
+                          source_account VARCHAR2(100) NOT NULL,
+                          target_account VARCHAR2(100) NOT NULL,
+                          amount         NUMBER(12,2)  NOT NULL,
+                          currency       VARCHAR2(10)  NOT NULL,
+                          txn_type       VARCHAR2(50)  NOT NULL,
+                          status         VARCHAR2(20)  NOT NULL,
+                          created_at     TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP
+                      )
+                  """)
+                  conn.commit()
+                  print("Table 'transactions' created successfully")
+              except oracledb.DatabaseError as e:
+                  error = e.args[0]
+                  if error.code == 955:
+                      print("Table 'transactions' already exists - skipping")
+                  else:
+                      raise
+              finally:
+                  cursor.close()
+                  conn.close()
+              PYEOF
+          env:
+            - name: DB_USER
+              value: {{ .Values.database.user | quote }}
+            - name: DB_PASSWORD
+              value: {{ .Values.database.password | quote }}
+            - name: DB_DSN
+              value: {{ .Values.database.dsn | quote }}

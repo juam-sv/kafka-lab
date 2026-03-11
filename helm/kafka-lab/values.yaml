@@ -1,0 +1,111 @@
+region: us-east-1
+
+aws:
+  accountId: "123456789"
+
+image:
+  registry: juamsv/kafka-labs
+  pullPolicy: IfNotPresent
+
+kafka:
+  brokers: ""
+  useMsk: true
+  topic: financial.transactions
+  partitions: 3
+  replicationFactor: 3
+
+database:
+  user: admin
+  password: ""
+  dsn: ""
+
+cache:
+  host: ""
+  port: "11211"
+  ttl: 120
+
+producer:
+  image:
+    tag: producer-latest
+  replicas: 1
+  msgPerSec: 5
+  serviceAccount:
+    roleName: producer
+  resources:
+    requests:
+      cpu: 100m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 128Mi
+
+consumer:
+  image:
+    tag: consumer-latest
+  replicas: 1
+  serviceAccount:
+    roleName: consumer
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+api:
+  image:
+    tag: api-latest
+  replicas: 1
+  port: 8000
+  serviceAccount:
+    roleName: api
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+  readinessProbe:
+    path: /docs
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  service:
+    type: ClusterIP
+
+frontend:
+  image:
+    tag: frontend-latest
+  replicas: 1
+  port: 8080
+  serviceAccount:
+    roleName: frontend
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+  readinessProbe:
+    path: /
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  service:
+    type: ClusterIP
+
+jobs:
+  ttlSecondsAfterFinished: 120
+  initOracle:
+    backoffLimit: 3
+
+keda:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  cooldownPeriod: 60
+  kafka:
+    consumerGroup: finance-group
+    lagThreshold: "10"
+    offsetResetPolicy: latest

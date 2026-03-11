@@ -1,0 +1,21 @@
+Kafka Lab has been deployed!
+
+  Chart:     {{ .Chart.Name }}-{{ .Chart.Version }}
+  Release:   {{ .Release.Name }}
+  Namespace: {{ .Release.Namespace }}
+
+Components:
+  - Producer:  {{ .Values.producer.replicas }} replica(s)
+  - Consumer:  {{ .Values.consumer.replicas }} replica(s)
+  - API:       {{ .Values.api.replicas }} replica(s) on port {{ .Values.api.port }}
+  - Frontend:  {{ .Values.frontend.replicas }} replica(s) on port {{ .Values.frontend.port }}
+{{- if .Values.keda.enabled }}
+
+KEDA auto-scaling is enabled for the consumer ({{ .Values.keda.minReplicas }}-{{ .Values.keda.maxReplicas }} replicas).
+{{- end }}
+
+To access the API:
+  kubectl port-forward svc/{{ include "kafka-lab.fullname" . }}-api {{ .Values.api.port }}:{{ .Values.api.port }}
+
+To access the frontend:
+  kubectl port-forward svc/{{ include "kafka-lab.fullname" . }}-frontend {{ .Values.frontend.port }}:{{ .Values.frontend.port }}

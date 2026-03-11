@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-api
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "api") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "api") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.api.serviceAccount.roleName }}
+      containers:
+        - name: api
+          image: {{ .Values.image.registry }}:{{ .Values.api.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.api.port }}
+          env:
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_PASSWORD
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_DSN
+            - name: MEMCACHED_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.apiSecretName" . }}
+                  key: MEMCACHED_HOST
+            - name: MEMCACHED_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.apiSecretName" . }}
+                  key: MEMCACHED_PORT
+            - name: CACHE_TTL
+              value: {{ .Values.cache.ttl | quote }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.api.readinessProbe.path }}
+              port: {{ .Values.api.port }}
+            initialDelaySeconds: {{ .Values.api.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.api.readinessProbe.periodSeconds }}
