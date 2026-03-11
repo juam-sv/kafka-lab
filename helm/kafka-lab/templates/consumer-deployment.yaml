@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-consumer
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: consumer
+spec:
+  replicas: {{ .Values.consumer.replicas }}
+  selector:
+    matchLabels:
+      {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "consumer") | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "consumer") | nindent 8 }}
+    spec:
+      serviceAccountName: {{ .Values.consumer.serviceAccount.roleName }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: consumer
+          image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          command: ["python", "consumer.py"]
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          env:
+            - name: KAFKA_BROKER
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: KAFKA_BROKER
+            - name: KAFKA_USE_MSK
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: KAFKA_USE_MSK
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: AWS_REGION
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_PASSWORD
+            - name: DB_DSN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  key: DB_WRITER_DSN
+          resources:
+            {{- toYaml .Values.consumer.resources | nindent 12 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}

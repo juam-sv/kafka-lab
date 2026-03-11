@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-create-topic
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-install
+    "helm.sh/hook-weight": "0"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  ttlSecondsAfterFinished: {{ .Values.jobs.ttlSecondsAfterFinished }}
+  template:
+    spec:
+      serviceAccountName: {{ .Values.producer.serviceAccount.roleName }}
+      restartPolicy: OnFailure
+      containers:
+        - name: create-topic
+          image: {{ .Values.image.registry }}:{{ .Values.producer.image.tag }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command:
+            - python
+            - -c
+            - |
+              import os
+              from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+              from confluent_kafka.admin import AdminClient, NewTopic
+
+              AWS_REGION = os.getenv("AWS_REGION", "{{ .Values.region }}")
+              KAFKA_BROKER = os.getenv("KAFKA_BROKER")
+
+              def oauth_cb(config):
+                  token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(AWS_REGION)
+                  return token, expiry_ms / 1000
+
+              admin = AdminClient({
+                  "bootstrap.servers": KAFKA_BROKER,
+                  "security.protocol": "SASL_SSL",
+                  "sasl.mechanism": "OAUTHBEARER",
+                  "oauth_cb": oauth_cb,
+              })
+
+              fs = admin.create_topics([NewTopic("{{ .Values.kafka.topic }}", num_partitions={{ .Values.kafka.partitions }}, replication_factor={{ .Values.kafka.replicationFactor }})])
+              for topic, f in fs.items():
+                  try:
+                      f.result()
+                      print(f"Topic {topic} created")
+                  except Exception as e:
+                      print(f"Topic {topic}: {e}")
+          env:
+            - name: KAFKA_BROKER
+              value: {{ .Values.kafka.brokers | quote }}
+            - name: AWS_REGION
+              value: {{ .Values.region | quote }}

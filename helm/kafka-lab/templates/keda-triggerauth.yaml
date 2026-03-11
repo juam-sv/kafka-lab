@@ -1,0 +1,11 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-msk-trigger-auth
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+spec:
+  podIdentity:
+    provider: aws
+{{- end }}

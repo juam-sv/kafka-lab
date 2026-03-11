@@ -1,0 +1,28 @@
+{{- if .Values.keda.enabled }}
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-consumer-scaler
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+spec:
+  scaleTargetRef:
+    name: {{ include "kafka-lab.fullname" . }}-consumer
+  minReplicaCount: {{ .Values.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.keda.maxReplicas }}
+  cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+  triggers:
+    - type: apache-kafka
+      metadata:
+        bootstrapServers: {{ .Values.kafka.brokers | quote }}
+        consumerGroup: {{ .Values.keda.kafka.consumerGroup }}
+        topic: {{ .Values.kafka.topic }}
+        lagThreshold: {{ .Values.keda.kafka.lagThreshold | quote }}
+        offsetResetPolicy: {{ .Values.keda.kafka.offsetResetPolicy }}
+        sasl: aws_msk_iam
+        tls: enable
+        awsRegion: {{ .Values.region }}
+        awsRoleArn: {{ include "kafka-lab.irsaArn" (dict "accountId" .Values.aws.accountId "roleName" .Values.consumer.serviceAccount.roleName) }}
+      authenticationRef:
+        name: {{ include "kafka-lab.fullname" . }}-msk-trigger-auth
+{{- end }}
