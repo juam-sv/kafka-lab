@@ -15,7 +15,7 @@ spec:
       labels:
         {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "frontend") | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.frontend.serviceAccount.roleName }}
+      serviceAccountName: {{ .Values.frontend.serviceAccount.name | default "frontend" }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 101

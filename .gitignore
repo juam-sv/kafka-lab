@@ -12,3 +12,4 @@ venv.bak/
 k8s/
 GEMINI.md
 services/*
+helm/kafka-lab/env/
