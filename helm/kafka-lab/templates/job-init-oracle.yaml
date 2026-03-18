@@ -1,3 +1,4 @@
+{{- if .Values.jobs.initOracle.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -69,3 +70,4 @@ spec:
                   value: {{ .Values.database.password | quote }}
                 - name: DB_DSN
                   value: {{ .Values.database.dsn | quote }}
+{{- end }}

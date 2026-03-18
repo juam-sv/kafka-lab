@@ -58,8 +58,21 @@ try:
         msg = c.poll(1.0)
         if msg is None:
             continue
+        if msg.error():
+            logger.warning("Kafka error: %s", msg.error())
+            continue
 
-        data = json.loads(msg.value().decode("utf-8"))
+        raw = msg.value()
+        if not raw:
+            logger.warning("Empty message at offset %s, skipping", msg.offset())
+            continue
+
+        try:
+            data = json.loads(raw.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            logger.warning("Malformed message at offset %s, skipping: %s", msg.offset(), e)
+            continue
+
         status = "APPROVED" if data["amount"] < 4000 else "SUSPICIOUS"
 
         print(

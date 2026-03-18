@@ -1,3 +1,4 @@
+{{- if .Values.jobs.createTopic.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -66,3 +67,4 @@ spec:
                   value: {{ .Values.kafka.brokers | quote }}
                 - name: AWS_REGION
                   value: {{ .Values.region | quote }}
+{{- end }}
