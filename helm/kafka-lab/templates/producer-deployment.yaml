@@ -15,7 +15,7 @@ spec:
       labels:
         {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "producer") | nindent 8 }}
     spec:
-      serviceAccountName: {{ .Values.producer.serviceAccount.roleName }}
+      serviceAccountName: {{ .Values.producer.serviceAccount.name | default "producer" }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

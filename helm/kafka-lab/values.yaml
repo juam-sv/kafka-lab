@@ -101,7 +101,11 @@ frontend:
 
 jobs:
   ttlSecondsAfterFinished: 120
+  createTopic:
+    schedule: "*/30 * * * *"
+    backoffLimit: 3
   initOracle:
+    schedule: "*/30 * * * *"
     backoffLimit: 3
 
 keda:
