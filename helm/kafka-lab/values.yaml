@@ -29,6 +29,7 @@ cache:
   ttl: 120
 
 producer:
+  enabled: true
   image:
     tag: producer-latest
   replicas: 1
@@ -44,6 +45,7 @@ producer:
       memory: 128Mi
 
 consumer:
+  enabled: true
   image:
     tag: consumer-latest
   replicas: 1
@@ -58,6 +60,7 @@ consumer:
       memory: 256Mi
 
 api:
+  enabled: true
   image:
     tag: api-latest
   replicas: 1
@@ -79,6 +82,7 @@ api:
     type: ClusterIP
 
 frontend:
+  enabled: true
   image:
     tag: frontend-latest
   replicas: 1
@@ -102,9 +106,11 @@ frontend:
 jobs:
   ttlSecondsAfterFinished: 120
   createTopic:
+    enabled: true
     schedule: "*/30 * * * *"
     backoffLimit: 3
   initOracle:
+    enabled: true
     schedule: "*/30 * * * *"
     backoffLimit: 3
 
