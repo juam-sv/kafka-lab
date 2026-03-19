@@ -1,0 +1,30 @@
+# Stress test overrides — KEDA consumer scaling + Karpenter node scaling
+# Usage: helm upgrade kafka-lab helm/kafka-lab/ -f helm/kafka-lab/env/values-us-east-1.yaml -f helm/kafka-lab/env/values-stress.yaml
+
+producer:
+  replicas: 8
+  msgPerSec: 1000
+  resources:
+    requests:
+      cpu: 256m
+      memory: 256Mi
+    limits:
+      cpu: 512m
+      memory: 512Mi
+
+consumer:
+  # Inflated CPU requests so ~6 consumers fill a c5.xlarge (4 vCPU),
+  # forcing Karpenter to provision new nodes when KEDA scales beyond that.
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+keda:
+  maxReplicas: 10
+  cooldownPeriod: 30        # Faster scale-down for quicker test cycles
+  kafka:
+    lagThreshold: "5"       # More aggressive — scale sooner
