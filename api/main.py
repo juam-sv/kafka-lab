@@ -119,10 +119,10 @@ def list_transactions(
         conditions.append("status = :status")
         params["status"] = status
     if date_from:
-        conditions.append("created_at >= TO_TIMESTAMP_TZ(:date_from, 'YYYY-MM-DD')")
+        conditions.append("created_at >= TO_TIMESTAMP_TZ(:date_from, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')")
         params["date_from"] = date_from
     if date_to:
-        conditions.append("created_at <= TO_TIMESTAMP_TZ(:date_to, 'YYYY-MM-DD')")
+        conditions.append("created_at <= TO_TIMESTAMP_TZ(:date_to, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')")
         params["date_to"] = date_to
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
