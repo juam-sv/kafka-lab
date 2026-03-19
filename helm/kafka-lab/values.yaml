@@ -104,6 +104,7 @@ frontend:
     type: ClusterIP
 
 jobs:
+  enabled: true
   ttlSecondsAfterFinished: 120
   createTopic:
     enabled: true
@@ -113,6 +114,11 @@ jobs:
     enabled: true
     schedule: "*/30 * * * *"
     backoffLimit: 3
+
+ingress:
+  enabled: false
+  hostname: "app.getorlo.info"
+  healthCheckId: ""  # Route53 health check ID (optional, created in Terraform)
 
 keda:
   enabled: true

@@ -1,4 +1,4 @@
-{{- if .Values.jobs.initOracle.enabled }}
+{{- if and .Values.jobs.enabled .Values.jobs.initOracle.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
