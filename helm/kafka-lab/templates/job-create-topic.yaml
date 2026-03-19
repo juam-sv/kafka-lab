@@ -18,6 +18,10 @@ spec:
         spec:
           serviceAccountName: {{ .Values.producer.serviceAccount.name | default "producer" }}
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
           containers:
             - name: create-topic
               image: {{ .Values.image.registry }}:{{ .Values.producer.image.tag }}
