@@ -68,6 +68,13 @@ spec:
                 secretKeyRef:
                   name: {{ include "kafka-lab.apiSecretName" . }}
                   key: CACHE_TLS
+            {{- if .Values.cache.password }}
+            - name: CACHE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.apiSecretName" . }}
+                  key: CACHE_PASSWORD
+            {{- end }}
             - name: CACHE_TTL
               value: {{ .Values.cache.ttl | quote }}
           resources:
