@@ -7,7 +7,9 @@ metadata:
     {{- include "kafka-lab.labels" . | nindent 4 }}
     app.kubernetes.io/component: consumer
 spec:
+  {{- if not .Values.keda.enabled }}
   replicas: {{ .Values.consumer.replicas }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "consumer") | nindent 6 }}
