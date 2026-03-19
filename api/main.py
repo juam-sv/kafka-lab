@@ -56,17 +56,30 @@ def get_db():
     return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
 
 
-try:
-    cache = redis.Redis(
-        host=CACHE_HOST, port=CACHE_PORT,
-        socket_timeout=2, socket_connect_timeout=2,
-        ssl=CACHE_TLS, decode_responses=True,
-    )
-    cache.ping()
-    logger.info("Cache connected — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
-except Exception as e:
-    logger.warning("Cache unavailable (%s:%s): %s", CACHE_HOST, CACHE_PORT, e)
-    cache = None
+def _connect_cache():
+    """Create Redis/Valkey connection. Returns client or None."""
+    logger.info("Connecting to cache — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+    try:
+        kwargs = dict(
+            host=CACHE_HOST, port=CACHE_PORT,
+            socket_timeout=5, socket_connect_timeout=5,
+            decode_responses=True,
+        )
+        if CACHE_TLS:
+            import ssl as _ssl
+            kwargs["ssl"] = True
+            kwargs["ssl_cert_reqs"] = "none"
+            kwargs["ssl_ca_certs"] = None
+        client = redis.Redis(**kwargs)
+        client.ping()
+        logger.info("Cache connected successfully — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+        return client
+    except Exception:
+        logger.exception("Cache connection failed — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+        return None
+
+
+cache = _connect_cache()
 
 
 def rows_to_dicts(cursor, rows):
@@ -76,8 +89,33 @@ def rows_to_dicts(cursor, rows):
 
 @app.on_event("startup")
 def log_startup():
-    logger.info("API started — DB_DSN=%s CACHE=%s:%s CACHE_TTL=%ds",
-                DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TTL)
+    global cache
+    if cache is None:
+        logger.info("Retrying cache connection at startup...")
+        cache = _connect_cache()
+    logger.info("API started — DB_DSN=%s CACHE=%s:%s CACHE_TLS=%s CACHE_TTL=%ds cache_status=%s",
+                DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS, CACHE_TTL,
+                "connected" if cache else "disconnected")
+
+
+@app.get("/cache-status")
+def cache_status():
+    """Diagnostic endpoint for cache connectivity."""
+    status = {"host": CACHE_HOST, "port": CACHE_PORT, "tls": CACHE_TLS, "ttl": CACHE_TTL}
+    if cache is None:
+        status["connected"] = False
+        status["error"] = "cache client is None (connection failed at startup)"
+        return status
+    try:
+        cache.ping()
+        info = cache.info(section="server")
+        status["connected"] = True
+        status["redis_version"] = info.get("redis_version", "unknown")
+        status["uptime_seconds"] = info.get("uptime_in_seconds", "unknown")
+    except Exception as e:
+        status["connected"] = False
+        status["error"] = str(e)
+    return status
 
 
 @app.get("/transactions")
