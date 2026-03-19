@@ -78,7 +78,7 @@ def log_startup():
                 DB_DSN, MEMCACHED_HOST, MEMCACHED_PORT, CACHE_TTL)
 
 
-@app.get("/api/transactions")
+@app.get("/transactions")
 def list_transactions(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
