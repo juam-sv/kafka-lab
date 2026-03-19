@@ -24,7 +24,7 @@ spec:
             fsGroup: 1000
           containers:
             - name: create-topic
-              image: {{ .Values.image.registry }}:{{ .Values.producer.image.tag }}
+              image: {{ .Values.producer.image.repository }}:{{ .Values.producer.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               securityContext:
                 runAsNonRoot: true

@@ -27,7 +27,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: consumer
-          image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
+          image: {{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             allowPrivilegeEscalation: false
