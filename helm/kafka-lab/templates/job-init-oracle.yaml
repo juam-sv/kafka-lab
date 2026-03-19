@@ -22,6 +22,14 @@ spec:
             - name: init-oracle
               image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: false
+                capabilities:
+                  drop:
+                    - ALL
               command:
                 - sh
                 - -c

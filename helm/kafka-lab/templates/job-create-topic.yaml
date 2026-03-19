@@ -22,6 +22,14 @@ spec:
             - name: create-topic
               image: {{ .Values.image.registry }}:{{ .Values.producer.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
               command:
                 - python
                 - -c

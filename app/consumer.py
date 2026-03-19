@@ -70,7 +70,10 @@ try:
         try:
             data = json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            logger.warning("Malformed message at offset %s, skipping: %s", msg.offset(), e)
+            logger.warning(
+                "Malformed message at offset %s, skipping: %s",
+                msg.offset(), e,
+            )
             continue
 
         status = "APPROVED" if data["amount"] < 4000 else "SUSPICIOUS"
