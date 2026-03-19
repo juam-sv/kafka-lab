@@ -2,24 +2,44 @@ import json
 import logging
 import math
 import os
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import oracledb
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pymemcache.client.base import Client as MemcacheClient
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("api")
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "%s %s %d %.1fms",
+        request.method,
+        request.url.path,
+        response.status_code,
+        elapsed_ms,
+    )
+    return response
 
 DB_USER = os.getenv("DB_USER", "finance_user")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "Finance123")
@@ -52,7 +72,13 @@ def rows_to_dicts(cursor, rows):
     return [dict(zip(cols, row, strict=True)) for row in rows]
 
 
-@app.get("/transactions")
+@app.on_event("startup")
+def log_startup():
+    logger.info("API started — DB_DSN=%s MEMCACHED=%s:%s CACHE_TTL=%ds",
+                DB_DSN, MEMCACHED_HOST, MEMCACHED_PORT, CACHE_TTL)
+
+
+@app.get("/api/transactions")
 def list_transactions(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -104,9 +130,15 @@ def list_transactions(
     offset = (page - 1) * per_page
     page_params = {**params, "per_page": per_page, "offset": offset}
 
-    conn = get_db()
+    try:
+        conn = get_db()
+    except oracledb.Error:
+        logger.exception("Failed to connect to Oracle")
+        raise
+
     try:
         cur = conn.cursor()
+        db_start = time.perf_counter()
 
         cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
         total = cur.fetchone()[0]
@@ -118,6 +150,11 @@ def list_transactions(
             page_params,
         )
         rows = rows_to_dicts(cur, cur.fetchall())
+        db_ms = (time.perf_counter() - db_start) * 1000
+        logger.info("DB query: %d rows, %d total, %.1fms", len(rows), total, db_ms)
+    except oracledb.Error:
+        logger.exception("DB query failed")
+        raise
     finally:
         conn.close()
 
