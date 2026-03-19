@@ -62,11 +62,13 @@ def _connect_cache():
     logger.info("Connecting to cache — host=%s port=%s tls=%s auth=%s",
                 CACHE_HOST, CACHE_PORT, CACHE_TLS, bool(CACHE_PASSWORD))
     try:
-        kwargs = dict(
-            host=CACHE_HOST, port=CACHE_PORT,
-            socket_timeout=5, socket_connect_timeout=5,
-            decode_responses=True,
-        )
+        kwargs = {
+            "host": CACHE_HOST,
+            "port": CACHE_PORT,
+            "socket_timeout": 5,
+            "socket_connect_timeout": 5,
+            "decode_responses": True,
+        }
         if CACHE_PASSWORD:
             kwargs["password"] = CACHE_PASSWORD
         if CACHE_TLS:
@@ -74,10 +76,16 @@ def _connect_cache():
             kwargs["ssl_cert_reqs"] = "none"
         client = redis.Redis(**kwargs)
         client.ping()
-        logger.info("Cache connected successfully — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+        logger.info(
+            "Cache connected — host=%s port=%s tls=%s",
+            CACHE_HOST, CACHE_PORT, CACHE_TLS,
+        )
         return client
     except Exception:
-        logger.exception("Cache connection failed — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+        logger.exception(
+            "Cache connection failed — host=%s port=%s tls=%s",
+            CACHE_HOST, CACHE_PORT, CACHE_TLS,
+        )
         return None
 
 
@@ -95,15 +103,22 @@ def log_startup():
     if cache is None:
         logger.info("Retrying cache connection at startup...")
         cache = _connect_cache()
-    logger.info("API started — DB_DSN=%s CACHE=%s:%s CACHE_TLS=%s CACHE_TTL=%ds cache_status=%s",
-                DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS, CACHE_TTL,
-                "connected" if cache else "disconnected")
+    logger.info(
+        "API started — DSN=%s CACHE=%s:%s TLS=%s TTL=%ds status=%s",
+        DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS, CACHE_TTL,
+        "connected" if cache else "disconnected",
+    )
 
 
 @app.get("/cache-status")
 def cache_status():
     """Diagnostic endpoint for cache connectivity."""
-    status = {"host": CACHE_HOST, "port": CACHE_PORT, "tls": CACHE_TLS, "ttl": CACHE_TTL}
+    status = {
+        "host": CACHE_HOST,
+        "port": CACHE_PORT,
+        "tls": CACHE_TLS,
+        "ttl": CACHE_TTL,
+    }
     if cache is None:
         status["connected"] = False
         status["error"] = "cache client is None (connection failed at startup)"
@@ -150,7 +165,8 @@ def list_transactions(
                 data = json.loads(cached)
                 data["cached"] = True
                 data["source"] = "cache"
-                data["response_time_ms"] = round((time.perf_counter() - request_start) * 1000, 1)
+                elapsed = time.perf_counter() - request_start
+                data["response_time_ms"] = round(elapsed * 1000, 1)
                 return data
             logger.info(f"Cache MISS for key: {cache_key}")
         except Exception as e:
@@ -163,10 +179,16 @@ def list_transactions(
         conditions.append("status = :status")
         params["status"] = status
     if date_from:
-        conditions.append("created_at >= TO_TIMESTAMP_TZ(:date_from, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')")
+        conditions.append(
+            "created_at >= TO_TIMESTAMP_TZ("
+            ":date_from, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')"
+        )
         params["date_from"] = date_from
     if date_to:
-        conditions.append("created_at <= TO_TIMESTAMP_TZ(:date_to, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')")
+        conditions.append(
+            "created_at <= TO_TIMESTAMP_TZ("
+            ":date_to, 'YYYY-MM-DD\"T\"HH24:MI:SS.FF3\"Z\"')"
+        )
         params["date_to"] = date_to
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""

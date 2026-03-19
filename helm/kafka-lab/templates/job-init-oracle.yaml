@@ -18,15 +18,32 @@ spec:
         spec:
           serviceAccountName: {{ .Values.consumer.serviceAccount.name | default "consumer" }}
           restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            fsGroup: 1000
           containers:
             - name: init-oracle
               image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop:
+                    - ALL
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+                - name: pip-cache
+                  mountPath: /.local
               command:
                 - sh
                 - -c
                 - |
-                  pip install oracledb && python << 'PYEOF'
+                  pip install --user oracledb && python << 'PYEOF'
                   import os
                   import oracledb
 
@@ -70,4 +87,11 @@ spec:
                   value: {{ .Values.database.password | quote }}
                 - name: DB_DSN
                   value: {{ .Values.database.dsn | quote }}
+                - name: PYTHONUSERBASE
+                  value: "/.local"
+          volumes:
+            - name: tmp
+              emptyDir: {}
+            - name: pip-cache
+              emptyDir: {}
 {{- end }}
