@@ -96,6 +96,7 @@ Legacy raw manifests remain in `k8s/` (gitignored) for reference.
 ## Key Conventions
 
 - Environment variables in `.env` (see `.env.example`); never commit `.env` or credentials
+- **Never commit files containing secrets or credentials** (passwords, tokens, API keys, DSNs with credentials). Files in `helm/kafka-lab/env/` such as `values-us-east-1.yaml` are gitignored because they contain plaintext passwords — do not force-add or commit them
 - Always create feature branches for changes
 - Docker images use non-root users (`appuser` for Python, `nginx` for frontend)
 - Keep `.env.example` in sync when adding new environment variables
