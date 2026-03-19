@@ -47,6 +47,7 @@ DB_DSN = os.getenv("DB_DSN", "oracle:1521/XEPDB1")
 CACHE_HOST = os.getenv("CACHE_HOST", os.getenv("MEMCACHED_HOST", "valkey"))
 CACHE_PORT = int(os.getenv("CACHE_PORT", os.getenv("MEMCACHED_PORT", "6379")))
 CACHE_TLS = os.getenv("CACHE_TLS", "false").lower() == "true"
+CACHE_PASSWORD = os.getenv("CACHE_PASSWORD", None)
 CACHE_TTL = int(os.getenv("CACHE_TTL", "120"))
 
 VALID_SORT_COLUMNS = {"amount", "created_at", "status", "txn_type", "currency"}
@@ -58,18 +59,19 @@ def get_db():
 
 def _connect_cache():
     """Create Redis/Valkey connection. Returns client or None."""
-    logger.info("Connecting to cache — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+    logger.info("Connecting to cache — host=%s port=%s tls=%s auth=%s",
+                CACHE_HOST, CACHE_PORT, CACHE_TLS, bool(CACHE_PASSWORD))
     try:
         kwargs = dict(
             host=CACHE_HOST, port=CACHE_PORT,
             socket_timeout=5, socket_connect_timeout=5,
             decode_responses=True,
         )
+        if CACHE_PASSWORD:
+            kwargs["password"] = CACHE_PASSWORD
         if CACHE_TLS:
-            import ssl as _ssl
             kwargs["ssl"] = True
             kwargs["ssl_cert_reqs"] = "none"
-            kwargs["ssl_ca_certs"] = None
         client = redis.Redis(**kwargs)
         client.ping()
         logger.info("Cache connected successfully — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)

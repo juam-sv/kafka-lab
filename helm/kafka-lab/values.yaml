@@ -27,6 +27,7 @@ cache:
   host: ""
   port: "6379"
   tls: false
+  password: ""
   ttl: 120
 
 producer:
