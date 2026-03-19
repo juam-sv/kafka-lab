@@ -84,10 +84,14 @@ services:
       oracle:
         condition: service_healthy
 
-  memcached:
-    image: memcached:1.6-alpine
-    container_name: memcached
-    command: memcached -m 64 -vv
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: valkey
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   api:
     build: ./api
@@ -96,13 +100,13 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       DB_DSN: ${DB_DSN}
-      MEMCACHED_HOST: 'memcached'
+      CACHE_HOST: 'valkey'
       CACHE_TTL: ${CACHE_TTL:-120}
     depends_on:
       oracle:
         condition: service_healthy
-      memcached:
-        condition: service_started
+      valkey:
+        condition: service_healthy
 
   frontend:
     build: ./frontend

@@ -25,7 +25,8 @@ database:
 
 cache:
   host: ""
-  port: "11211"
+  port: "6379"
+  tls: false
   ttl: 120
 
 producer:

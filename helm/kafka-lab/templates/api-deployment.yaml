@@ -53,16 +53,21 @@ spec:
                 secretKeyRef:
                   name: {{ include "kafka-lab.oracleSecretName" . }}
                   key: DB_READER_DSN
-            - name: MEMCACHED_HOST
+            - name: CACHE_HOST
               valueFrom:
                 secretKeyRef:
                   name: {{ include "kafka-lab.apiSecretName" . }}
-                  key: MEMCACHED_HOST
-            - name: MEMCACHED_PORT
+                  key: CACHE_HOST
+            - name: CACHE_PORT
               valueFrom:
                 secretKeyRef:
                   name: {{ include "kafka-lab.apiSecretName" . }}
-                  key: MEMCACHED_PORT
+                  key: CACHE_PORT
+            - name: CACHE_TLS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.apiSecretName" . }}
+                  key: CACHE_TLS
             - name: CACHE_TTL
               value: {{ .Values.cache.ttl | quote }}
           resources:

@@ -7,9 +7,9 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 import oracledb
+import redis
 from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pymemcache.client.base import Client as MemcacheClient
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,8 +44,9 @@ async def log_requests(request: Request, call_next):
 DB_USER = os.getenv("DB_USER", "finance_user")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "Finance123")
 DB_DSN = os.getenv("DB_DSN", "oracle:1521/XEPDB1")
-MEMCACHED_HOST = os.getenv("MEMCACHED_HOST", "memcached")
-MEMCACHED_PORT = int(os.getenv("MEMCACHED_PORT", "11211"))
+CACHE_HOST = os.getenv("CACHE_HOST", os.getenv("MEMCACHED_HOST", "valkey"))
+CACHE_PORT = int(os.getenv("CACHE_PORT", os.getenv("MEMCACHED_PORT", "6379")))
+CACHE_TLS = os.getenv("CACHE_TLS", "false").lower() == "true"
 CACHE_TTL = int(os.getenv("CACHE_TTL", "120"))
 
 VALID_SORT_COLUMNS = {"amount", "created_at", "status", "txn_type", "currency"}
@@ -55,16 +56,17 @@ def get_db():
     return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
 
 
-def get_cache():
-    try:
-        return MemcacheClient(
-            (MEMCACHED_HOST, MEMCACHED_PORT),
-            connect_timeout=1,
-            timeout=1,
-        )
-    except Exception as e:
-        logger.warning(f"Failed to connect to Memcached: {e}")
-        return None
+try:
+    cache = redis.Redis(
+        host=CACHE_HOST, port=CACHE_PORT,
+        socket_timeout=2, socket_connect_timeout=2,
+        ssl=CACHE_TLS, decode_responses=True,
+    )
+    cache.ping()
+    logger.info("Cache connected — host=%s port=%s tls=%s", CACHE_HOST, CACHE_PORT, CACHE_TLS)
+except Exception as e:
+    logger.warning("Cache unavailable (%s:%s): %s", CACHE_HOST, CACHE_PORT, e)
+    cache = None
 
 
 def rows_to_dicts(cursor, rows):
@@ -74,8 +76,8 @@ def rows_to_dicts(cursor, rows):
 
 @app.on_event("startup")
 def log_startup():
-    logger.info("API started — DB_DSN=%s MEMCACHED=%s:%s CACHE_TTL=%ds",
-                DB_DSN, MEMCACHED_HOST, MEMCACHED_PORT, CACHE_TTL)
+    logger.info("API started — DB_DSN=%s CACHE=%s:%s CACHE_TTL=%ds",
+                DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TTL)
 
 
 @app.get("/transactions")
@@ -88,6 +90,8 @@ def list_transactions(
     sort_by: str = Query("created_at"),
     sort_order: str = Query("desc"),
 ):
+    request_start = time.perf_counter()
+
     if sort_by not in VALID_SORT_COLUMNS:
         sort_by = "created_at"
     if sort_order not in ("asc", "desc"):
@@ -98,15 +102,15 @@ def list_transactions(
         f"{sort_by}:{sort_order}"
     )
 
-    mc = get_cache()
-    if mc:
+    if cache:
         try:
-            cached = mc.get(cache_key)
+            cached = cache.get(cache_key)
             if cached:
                 logger.info(f"Cache HIT for key: {cache_key}")
                 data = json.loads(cached)
                 data["cached"] = True
-                data["cached_at"] = data.get("cached_at")
+                data["source"] = "cache"
+                data["response_time_ms"] = round((time.perf_counter() - request_start) * 1000, 1)
                 return data
             logger.info(f"Cache MISS for key: {cache_key}")
         except Exception as e:
@@ -174,11 +178,13 @@ def list_transactions(
         "pages": math.ceil(total / per_page) if per_page else 1,
         "cached": False,
         "cached_at": now,
+        "source": "database",
+        "response_time_ms": round((time.perf_counter() - request_start) * 1000, 1),
     }
 
-    if mc:
+    if cache:
         try:
-            mc.set(cache_key, json.dumps(result), expire=CACHE_TTL)
+            cache.set(cache_key, json.dumps(result), ex=CACHE_TTL)
             logger.info(f"Cache SET for key: {cache_key} (TTL: {CACHE_TTL}s)")
         except Exception as e:
             logger.error(f"Cache storage error: {e}")
