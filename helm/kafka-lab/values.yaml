@@ -4,7 +4,6 @@ aws:
   accountId: "123456789"
 
 image:
-  registry: juamsv/kafka-labs
   pullPolicy: IfNotPresent
 
 kafka:
@@ -33,7 +32,8 @@ cache:
 producer:
   enabled: true
   image:
-    tag: producer-latest
+    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/producer
+    tag: latest
   replicas: 1
   msgPerSec: 5
   serviceAccount:
@@ -49,7 +49,8 @@ producer:
 consumer:
   enabled: true
   image:
-    tag: consumer-latest
+    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/consumer
+    tag: latest
   replicas: 1
   serviceAccount:
     roleName: consumer
@@ -64,7 +65,8 @@ consumer:
 api:
   enabled: true
   image:
-    tag: api-latest
+    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/api
+    tag: latest
   replicas: 1
   port: 8000
   serviceAccount:
@@ -86,7 +88,8 @@ api:
 frontend:
   enabled: true
   image:
-    tag: frontend-latest
+    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: latest
   replicas: 1
   port: 8080
   serviceAccount:

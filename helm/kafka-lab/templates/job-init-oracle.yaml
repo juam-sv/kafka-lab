@@ -24,7 +24,7 @@ spec:
             fsGroup: 1000
           containers:
             - name: init-oracle
-              image: {{ .Values.image.registry }}:{{ .Values.consumer.image.tag }}
+              image: {{ .Values.consumer.image.repository }}:{{ .Values.consumer.image.tag }}
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               securityContext:
                 runAsNonRoot: true

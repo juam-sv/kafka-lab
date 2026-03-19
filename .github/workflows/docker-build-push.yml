@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   build-and-push:
     name: Build and Push Docker Images
@@ -16,26 +20,41 @@ jobs:
         include:
           - component: api
             context: ./api
+            ecr_repo: api
           - component: frontend
             context: ./frontend
+            ecr_repo: frontend
           - component: consumer
             context: ./app
+            ecr_repo: consumer
           - component: producer
             context: ./app
+            ecr_repo: producer
+        region:
+          - us-east-1
+          - us-east-2
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@v5.1.1
+        with:
+          audience: sts.amazonaws.com
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/InfraDeployAccess
+          aws-region: ${{ matrix.region }}
+          role-session-name: github-actions-ecr-push
+
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v4
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Get Short SHA
         id: vars
@@ -47,7 +66,7 @@ jobs:
           context: ${{ matrix.context }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
-            juamsv/kafka-labs:${{ matrix.component }}-${{ steps.vars.outputs.sha_short }}
-            juamsv/kafka-labs:${{ matrix.component }}-latest
+            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ matrix.region }}.amazonaws.com/${{ matrix.ecr_repo }}:${{ steps.vars.outputs.sha_short }}
+            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ matrix.region }}.amazonaws.com/${{ matrix.ecr_repo }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
