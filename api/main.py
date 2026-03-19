@@ -13,7 +13,7 @@ from pymemcache.client.base import Client as MemcacheClient
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -52,7 +52,7 @@ def rows_to_dicts(cursor, rows):
     return [dict(zip(cols, row, strict=True)) for row in rows]
 
 
-@app.get("/transactions")
+@app.get("/api/transactions")
 def list_transactions(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),

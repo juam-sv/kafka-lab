@@ -1,4 +1,4 @@
-{{- if .Values.jobs.createTopic.enabled }}
+{{- if and .Values.jobs.enabled .Values.jobs.createTopic.enabled }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
