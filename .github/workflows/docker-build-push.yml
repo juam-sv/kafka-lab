@@ -2,7 +2,7 @@ name: Docker Build and Push
 
 on:
   push:
-    branches: [ "main" ]
+    tags: ['v*']
   pull_request:
     branches: [ "main" ]
 
@@ -60,13 +60,30 @@ jobs:
         id: vars
         run: echo "sha_short=$(git rev-parse --short=6 HEAD)" >> $GITHUB_OUTPUT
 
+      - name: Build image tags
+        id: tags
+        env:
+          REGISTRY: ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ matrix.region }}.amazonaws.com
+          REPO: ${{ matrix.ecr_repo }}
+          SHA: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          TAGS="${REGISTRY}/${REPO}:${SHA}"
+          TAGS="${TAGS}
+          ${REGISTRY}/${REPO}:latest"
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            TAGS="${TAGS}
+          ${REGISTRY}/${REPO}:${VERSION}"
+          fi
+          echo "tags<<EOF" >> $GITHUB_OUTPUT
+          echo "$TAGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
       - name: Build and Push
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
           push: ${{ github.event_name != 'pull_request' }}
-          tags: |
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ matrix.region }}.amazonaws.com/${{ matrix.ecr_repo }}:${{ steps.vars.outputs.sha_short }}
-            ${{ vars.AWS_ACCOUNT_ID }}.dkr.ecr.${{ matrix.region }}.amazonaws.com/${{ matrix.ecr_repo }}:latest
+          tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
