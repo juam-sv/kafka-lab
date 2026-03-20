@@ -76,6 +76,8 @@ spec:
                   optional: true
             - name: CACHE_TTL
               value: {{ .Values.cache.ttl | quote }}
+            - name: CACHE_COUNT_TTL
+              value: {{ .Values.cache.countTtl | quote }}
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           readinessProbe:
