@@ -9,6 +9,7 @@ on:
 permissions:
   id-token: write
   contents: write
+  pull-requests: write
 
 jobs:
   tag:
@@ -150,3 +151,37 @@ jobs:
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  update-helm-values:
+    name: Update Helm Image Tags
+    needs: [tag, build-and-push]
+    if: github.event_name == 'push' && needs.tag.outputs.new_tag != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Update image tags in values files
+        env:
+          VERSION: ${{ needs.tag.outputs.new_tag }}
+        run: |
+          TAG="${VERSION#v}"
+          for values_file in helm/kafka-lab/env/values-us-east-1.yaml helm/kafka-lab/env/values-us-east-2.yaml; do
+            sed -i "s/^\(\s*tag:\s*\).*/\1\"${TAG}\"/" "$values_file"
+          done
+
+      - name: Create PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.tag.outputs.new_tag }}
+        run: |
+          TAG="${VERSION#v}"
+          BRANCH="chore/update-image-tags-${TAG}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add helm/kafka-lab/env/values-us-east-1.yaml helm/kafka-lab/env/values-us-east-2.yaml
+          git commit -m "chore: update image tags to ${TAG}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --title "chore: update image tags to ${TAG}" \
+            --body "Automated PR to update Helm values with image tag \`${TAG}\` after successful build and push to ECR."
