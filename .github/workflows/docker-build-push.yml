@@ -1,15 +1,20 @@
-name: Docker Build and Push
+name: Build, Tag, and Deploy
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'helm/kafka-lab/env/**'
   pull_request:
-    branches: [ "main" ]
+    branches: [main]
 
 permissions:
   id-token: write
   contents: write
-  pull-requests: write
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   tag:
@@ -18,6 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       new_tag: ${{ steps.bump.outputs.new_tag }}
+      version: ${{ steps.bump.outputs.version }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -30,6 +36,7 @@ jobs:
 
           if [ -z "$LATEST_TAG" ]; then
             echo "new_tag=v0.1.0" >> $GITHUB_OUTPUT
+            echo "version=0.1.0" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -44,6 +51,7 @@ jobs:
           if [ -z "$COMMITS" ]; then
             echo "No new commits since $LATEST_TAG"
             echo "new_tag=" >> $GITHUB_OUTPUT
+            echo "version=" >> $GITHUB_OUTPUT
             exit 0
           fi
 
@@ -61,6 +69,7 @@ jobs:
           fi
 
           echo "new_tag=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+          echo "version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
 
       - name: Create and push tag
         if: steps.bump.outputs.new_tag != ''
@@ -73,7 +82,9 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     needs: [tag]
-    if: always() && (needs.tag.result == 'success' || github.event_name == 'pull_request')
+    if: |
+      (github.event_name == 'push' && needs.tag.outputs.new_tag != '') ||
+      github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -159,29 +170,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update image tags in values files
+      - name: Update image tags and push
         env:
-          VERSION: ${{ needs.tag.outputs.new_tag }}
+          VERSION: ${{ needs.tag.outputs.version }}
         run: |
-          TAG="${VERSION#v}"
           for values_file in helm/kafka-lab/env/values-us-east-1.yaml helm/kafka-lab/env/values-us-east-2.yaml; do
-            sed -i "s/^\(\s*tag:\s*\).*/\1\"${TAG}\"/" "$values_file"
+            sed -i "s/^\(\s*tag:\s*\).*/\1\"${VERSION}\"/" "$values_file"
           done
 
-      - name: Create PR
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ needs.tag.outputs.new_tag }}
-        run: |
-          TAG="${VERSION#v}"
-          BRANCH="chore/update-image-tags-${TAG}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
+
           git add helm/kafka-lab/env/values-us-east-1.yaml helm/kafka-lab/env/values-us-east-2.yaml
-          git commit -m "chore: update image tags to ${TAG}"
-          git push origin "$BRANCH"
-          gh pr create \
-            --title "chore: update image tags to ${TAG}" \
-            --body "Automated PR to update Helm values with image tag \`${TAG}\` after successful build and push to ECR."
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit — tags already up to date"
+            exit 0
+          fi
+
+          git commit -m "chore: update image tags to ${VERSION} [skip ci]"
+          git push origin main
