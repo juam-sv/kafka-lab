@@ -77,6 +77,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        component: [api, frontend, consumer, producer]
+        region: [us-east-1, us-east-2]
         include:
           - component: api
             context: ./api
@@ -92,9 +94,6 @@ jobs:
             context: ./app
             dockerfile: ./app/Dockerfile.producer
             ecr_repo: producer
-        region:
-          - us-east-1
-          - us-east-2
 
     steps:
       - name: Checkout code
