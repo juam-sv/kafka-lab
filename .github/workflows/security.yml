@@ -70,18 +70,24 @@ jobs:
     strategy:
       matrix:
         include:
-          - image_name: kafka-lab-app
+          - image_name: kafka-lab-producer
             context: ./app
+            dockerfile: ./app/Dockerfile.producer
+          - image_name: kafka-lab-consumer
+            context: ./app
+            dockerfile: ./app/Dockerfile.consumer
           - image_name: kafka-lab-api
             context: ./api
+            dockerfile: ./api/Dockerfile
           - image_name: kafka-lab-frontend
             context: ./frontend
+            dockerfile: ./frontend/Dockerfile
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
 
       - name: Build Docker Image
-        run: docker build -t ${{ matrix.image_name }}:latest ${{ matrix.context }}
+        run: docker build -t ${{ matrix.image_name }}:latest -f ${{ matrix.dockerfile }} ${{ matrix.context }}
 
       - name: Trivy Image Scan
         uses: aquasecurity/trivy-action@0.35.0

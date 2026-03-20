@@ -60,7 +60,9 @@ services:
       PORT: 9021
 
   producer:
-    build: ./app
+    build:
+      context: ./app
+      dockerfile: Dockerfile.producer
     container_name: producer
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER}
@@ -70,9 +72,10 @@ services:
         condition: service_healthy
 
   consumer:
-    build: ./app
+    build:
+      context: ./app
+      dockerfile: Dockerfile.consumer
     container_name: consumer
-    command: python consumer.py
     environment:
       KAFKA_BROKER: ${KAFKA_BROKER}
       DB_USER: ${DB_USER}
