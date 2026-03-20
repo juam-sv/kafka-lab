@@ -9,7 +9,7 @@ kafka-lab
 Fully qualified release name (release-chartname), truncated to 63 chars.
 */}}
 {{- define "kafka-lab.fullname" -}}
-{{- printf "%s-%s" .Release.Name (include "kafka-lab.name" .) | trunc 63 | trimSuffix "-" }}
+{{- .Release.Name | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
