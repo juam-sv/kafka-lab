@@ -32,6 +32,7 @@ cache:
   tls: false
   password: ""
   ttl: 120
+  countTtl: 300
 
 producer:
   enabled: true

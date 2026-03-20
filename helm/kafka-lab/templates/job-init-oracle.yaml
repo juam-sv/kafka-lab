@@ -76,9 +76,26 @@ spec:
                           print("Table 'transactions' already exists - skipping")
                       else:
                           raise
-                  finally:
-                      cursor.close()
-                      conn.close()
+
+                  indexes = [
+                      ("idx_txn_created_at", "CREATE INDEX idx_txn_created_at ON transactions (created_at DESC)"),
+                      ("idx_txn_status_date", "CREATE INDEX idx_txn_status_date ON transactions (status, created_at DESC)"),
+                      ("idx_txn_amount", "CREATE INDEX idx_txn_amount ON transactions (amount)"),
+                  ]
+                  for idx_name, ddl in indexes:
+                      try:
+                          cursor.execute(ddl)
+                          conn.commit()
+                          print(f"Index '{idx_name}' created successfully")
+                      except oracledb.DatabaseError as e:
+                          error = e.args[0]
+                          if error.code == 955:
+                              print(f"Index '{idx_name}' already exists - skipping")
+                          else:
+                              raise
+
+                  cursor.close()
+                  conn.close()
                   PYEOF
               env:
                 - name: DB_USER

@@ -11,3 +11,7 @@ CREATE TABLE finance_user.transactions (
     status         VARCHAR2(20)  NOT NULL,
     created_at     TIMESTAMP WITH TIME ZONE DEFAULT SYSTIMESTAMP
 );
+
+CREATE INDEX idx_txn_created_at ON finance_user.transactions (created_at DESC);
+CREATE INDEX idx_txn_status_date ON finance_user.transactions (status, created_at DESC);
+CREATE INDEX idx_txn_amount ON finance_user.transactions (amount);

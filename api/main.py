@@ -49,12 +49,25 @@ CACHE_PORT = int(os.getenv("CACHE_PORT", os.getenv("MEMCACHED_PORT", "6379")))
 CACHE_TLS = os.getenv("CACHE_TLS", "false").lower() == "true"
 CACHE_PASSWORD = os.getenv("CACHE_PASSWORD", None)
 CACHE_TTL = int(os.getenv("CACHE_TTL", "120"))
+CACHE_COUNT_TTL = int(os.getenv("CACHE_COUNT_TTL", "300"))
 
 VALID_SORT_COLUMNS = {"amount", "created_at", "status", "txn_type", "currency"}
 
+pool = None
 
-def get_db():
-    return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
+
+def _create_pool():
+    """Create Oracle connection pool."""
+    try:
+        p = oracledb.create_pool(
+            user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN,
+            min=2, max=10, increment=1,
+        )
+        logger.info("Oracle connection pool created — min=2 max=10")
+        return p
+    except oracledb.Error:
+        logger.exception("Failed to create Oracle connection pool")
+        return None
 
 
 def _connect_cache():
@@ -98,16 +111,29 @@ def rows_to_dicts(cursor, rows):
 
 
 @app.on_event("startup")
-def log_startup():
-    global cache
+def on_startup():
+    global cache, pool
     if cache is None:
         logger.info("Retrying cache connection at startup...")
         cache = _connect_cache()
+    pool = _create_pool()
     logger.info(
-        "API started — DSN=%s CACHE=%s:%s TLS=%s TTL=%ds status=%s",
-        DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS, CACHE_TTL,
+        "API started — DSN=%s CACHE=%s:%s TLS=%s TTL=%ds "
+        "COUNT_TTL=%ds pool=%s status=%s",
+        DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS,
+        CACHE_TTL, CACHE_COUNT_TTL,
+        "active" if pool else "none",
         "connected" if cache else "disconnected",
     )
+
+
+@app.on_event("shutdown")
+def on_shutdown():
+    global pool
+    if pool:
+        pool.close()
+        logger.info("Oracle connection pool closed")
+        pool = None
 
 
 @app.get("/cache-status")
@@ -118,6 +144,7 @@ def cache_status():
         "port": CACHE_PORT,
         "tls": CACHE_TLS,
         "ttl": CACHE_TTL,
+        "count_ttl": CACHE_COUNT_TTL,
     }
     if cache is None:
         status["connected"] = False
@@ -156,6 +183,7 @@ def list_transactions(
         f"txns:{page}:{per_page}:{status}:{date_from}:{date_to}:"
         f"{sort_by}:{sort_order}"
     )
+    count_cache_key = f"txns:count:{status}:{date_from}:{date_to}"
 
     if cache:
         try:
@@ -196,18 +224,37 @@ def list_transactions(
     offset = (page - 1) * per_page
     page_params = {**params, "per_page": per_page, "offset": offset}
 
-    try:
-        conn = get_db()
-    except oracledb.Error:
-        logger.exception("Failed to connect to Oracle")
-        raise
+    if pool:
+        conn = pool.acquire()
+    else:
+        conn = oracledb.connect(
+            user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN,
+        )
 
     try:
         cur = conn.cursor()
         db_start = time.perf_counter()
 
-        cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
-        total = cur.fetchone()[0]
+        # Try to get count from cache (longer TTL)
+        total = None
+        if cache:
+            try:
+                cached_count = cache.get(count_cache_key)
+                if cached_count is not None:
+                    total = int(cached_count)
+                    logger.info(f"Count cache HIT: {total}")
+            except Exception as e:
+                logger.error(f"Count cache retrieval error: {e}")
+
+        if total is None:
+            cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
+            total = cur.fetchone()[0]
+            if cache:
+                try:
+                    cache.set(count_cache_key, str(total), ex=CACHE_COUNT_TTL)
+                    logger.info(f"Count cache SET: {total} (TTL: {CACHE_COUNT_TTL}s)")
+                except Exception as e:
+                    logger.error(f"Count cache storage error: {e}")
 
         cur.execute(
             f"SELECT * FROM transactions {where} "  # noqa: S608  # nosec B608
@@ -222,7 +269,10 @@ def list_transactions(
         logger.exception("DB query failed")
         raise
     finally:
-        conn.close()
+        if pool:
+            pool.release(conn)
+        else:
+            conn.close()
 
     for r in rows:
         for k, v in r.items():
@@ -244,10 +294,14 @@ def list_transactions(
         "response_time_ms": round((time.perf_counter() - request_start) * 1000, 1),
     }
 
+    # Lower TTL for page 1 default sort (hottest query) for freshness
+    is_hot_query = page == 1 and sort_by == "created_at" and sort_order == "desc"
+    data_ttl = 60 if is_hot_query else CACHE_TTL
+
     if cache:
         try:
-            cache.set(cache_key, json.dumps(result), ex=CACHE_TTL)
-            logger.info(f"Cache SET for key: {cache_key} (TTL: {CACHE_TTL}s)")
+            cache.set(cache_key, json.dumps(result), ex=data_ttl)
+            logger.info(f"Cache SET for key: {cache_key} (TTL: {data_ttl}s)")
         except Exception as e:
             logger.error(f"Cache storage error: {e}")
 

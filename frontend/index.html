@@ -55,6 +55,9 @@
   .pagination span { font-size: 0.8rem; color: #8b949e; }
 
   .empty { text-align: center; padding: 40px; color: #8b949e; }
+  .loading { opacity: 0.5; pointer-events: none; transition: opacity 0.2s; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.6s linear infinite; margin-right: 6px; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -131,10 +134,26 @@ function defaultDateFrom() {
 
 let state = { page: 1, perPage: 20, status: '', dateFrom: defaultDateFrom(), dateTo: '', sortBy: 'created_at', sortOrder: 'desc' };
 let refreshTimer = null;
+let abortController = null;
+let debounceTimer = null;
 
 const $ = id => document.getElementById(id);
 
+function debouncedLoad() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(load, 300);
+}
+
 async function load() {
+  if (abortController) abortController.abort();
+  abortController = new AbortController();
+
+  const tableEl = document.querySelector('table');
+  const infoEl = $('info');
+  tableEl.classList.add('loading');
+  const prevInfo = infoEl.innerHTML;
+  infoEl.innerHTML = '<span class="spinner"></span>' + (prevInfo || 'Loading…');
+
   const params = new URLSearchParams({
     page: state.page,
     per_page: state.perPage,
@@ -146,11 +165,14 @@ async function load() {
   if (state.dateTo) params.set('date_to', new Date(state.dateTo).toISOString());
 
   try {
-    const res = await fetch(`${API}?${params}`);
+    const res = await fetch(`${API}?${params}`, { signal: abortController.signal });
     const json = await res.json();
     render(json);
   } catch (e) {
+    if (e.name === 'AbortError') return;
     $('tbody').innerHTML = '<tr><td colspan="9" class="empty">Failed to load</td></tr>';
+  } finally {
+    tableEl.classList.remove('loading');
   }
 }
 
@@ -245,14 +267,14 @@ document.querySelectorAll('th[data-col]').forEach(th => {
   });
 });
 
-$('filterStatus').addEventListener('change', e => { state.status = e.target.value; state.page = 1; load(); });
-$('dateFrom').addEventListener('change', e => { state.dateFrom = e.target.value; state.page = 1; load(); });
-$('dateTo').addEventListener('change', e => { state.dateTo = e.target.value; state.page = 1; load(); });
-$('perPage').addEventListener('change', e => { state.perPage = parseInt(e.target.value); state.page = 1; load(); });
+$('filterStatus').addEventListener('change', e => { state.status = e.target.value; state.page = 1; debouncedLoad(); });
+$('dateFrom').addEventListener('change', e => { state.dateFrom = e.target.value; state.page = 1; debouncedLoad(); });
+$('dateTo').addEventListener('change', e => { state.dateTo = e.target.value; state.page = 1; debouncedLoad(); });
+$('perPage').addEventListener('change', e => { state.perPage = parseInt(e.target.value); state.page = 1; debouncedLoad(); });
 
 $('autoRefresh').addEventListener('change', e => {
   if (e.target.checked) {
-    refreshTimer = setInterval(load, 5000);
+    refreshTimer = setInterval(load, 15000);
   } else {
     clearInterval(refreshTimer);
     refreshTimer = null;
@@ -261,7 +283,7 @@ $('autoRefresh').addEventListener('change', e => {
 
 $('dateFrom').value = state.dateFrom;
 $('autoRefresh').checked = true;
-refreshTimer = setInterval(load, 5000);
+refreshTimer = setInterval(load, 15000);
 load();
 </script>
 </body>
