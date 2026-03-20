@@ -86,9 +86,11 @@ jobs:
             ecr_repo: frontend
           - component: consumer
             context: ./app
+            dockerfile: ./app/Dockerfile.consumer
             ecr_repo: consumer
           - component: producer
             context: ./app
+            dockerfile: ./app/Dockerfile.producer
             ecr_repo: producer
         region:
           - us-east-1
@@ -144,6 +146,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile || '' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.tags.outputs.tags }}
           cache-from: type=gha
