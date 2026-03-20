@@ -16,12 +16,11 @@ spec:
         - env/values-us-east-1.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: kafka-lab
+    namespace: default
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
     - ApplyOutOfSyncOnly=true
 
