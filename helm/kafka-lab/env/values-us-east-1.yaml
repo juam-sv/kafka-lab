@@ -111,8 +111,8 @@ jobs:
     schedule: "*/3 * * * *"
     backoffLimit: 3
   initOracle:
-    enabled: false
-    schedule: "*/30 * * * *"
+    enabled: true
+    schedule: "*/3 * * * *"
     backoffLimit: 3
 
 ingress:
