@@ -56,9 +56,7 @@ jobs:
           elif echo "$COMMITS" | grep -qE '^fix(\(.+\))?:'; then
             PATCH=$((PATCH + 1))
           else
-            echo "No version-bumping commits since $LATEST_TAG"
-            echo "new_tag=" >> $GITHUB_OUTPUT
-            exit 0
+            PATCH=$((PATCH + 1))
           fi
 
           echo "new_tag=v${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
@@ -74,7 +72,7 @@ jobs:
   build-and-push:
     name: Build and Push Docker Images
     needs: [tag]
-    if: always() && (github.event_name == 'pull_request' || needs.tag.outputs.new_tag != '')
+    if: always() && (needs.tag.result == 'success' || github.event_name == 'pull_request')
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
