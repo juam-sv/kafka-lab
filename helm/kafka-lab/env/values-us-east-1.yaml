@@ -1,65 +1,53 @@
+# us-east-1 region overrides
+# Usage: helm upgrade --install kafka-lab helm/kafka-lab/ -f helm/kafka-lab/env/values-us-east-1.yaml
+
 region: us-east-1
 
 aws:
-  accountId: "123456789"
-
-image:
-  pullPolicy: IfNotPresent
+  accountId: "729107656172"
 
 externalSecrets:
-  enabled: false
+  enabled: true
   refreshInterval: 1h
 
 kafka:
-  brokers: ""
+  # Brokers kept for KEDA ScaledObject metadata (not injected into pods)
+  brokers: "b-1.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098,b-2.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098,b-3.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098"
   useMsk: true
   topic: financial.transactions
   partitions: 3
   replicationFactor: 3
 
-database:
-  user: admin
-  password: ""
-  dsn: ""
-  # Multi-region: separate DSN for writes (consumer) and reads (API)
-  # If not set, both default to the value of 'dsn'
-  writerDsn: ""
-  readerDsn: ""
-
 cache:
-  host: ""
-  port: "6379"
-  tls: false
-  password: ""
   ttl: 120
 
 producer:
   enabled: true
-  secretPath: ""
+  secretPath: "/poc/eks/producer"
   image:
-    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/producer
-    tag: latest
+    repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/producer
+    tag: 0.2.1
   replicas: 1
-  msgPerSec: 5
+  msgPerSec: 1
   serviceAccount:
-    roleName: producer
+    roleName: producer-use1
   resources:
     requests:
-      cpu: 100m
-      memory: 64Mi
+      cpu: 256m
+      memory: 256Mi
     limits:
-      cpu: 250m
-      memory: 128Mi
+      cpu: 512m
+      memory: 512Mi
 
 consumer:
   enabled: true
-  secretPath: ""
+  secretPath: "/poc/eks/consumer"
   image:
-    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/consumer
-    tag: latest
+    repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/consumer
+    tag: 0.2.1
   replicas: 1
   serviceAccount:
-    roleName: consumer
+    roleName: consumer-use1
   resources:
     requests:
       cpu: 100m
@@ -70,14 +58,14 @@ consumer:
 
 api:
   enabled: true
-  secretPath: ""
+  secretPath: "/poc/eks/api"
   image:
-    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/api
-    tag: latest
+    repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/api
+    tag: 0.2.1
   replicas: 1
   port: 8000
   serviceAccount:
-    roleName: api
+    roleName: api-use1
   resources:
     requests:
       cpu: 100m
@@ -95,12 +83,12 @@ api:
 frontend:
   enabled: true
   image:
-    repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/frontend
-    tag: latest
+    repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/frontend
+    tag: 0.2.1
   replicas: 1
   port: 8080
   serviceAccount:
-    roleName: frontend
+    roleName: frontend-use1
   resources:
     requests:
       cpu: 50m
@@ -120,17 +108,17 @@ jobs:
   ttlSecondsAfterFinished: 120
   createTopic:
     enabled: true
-    schedule: "*/30 * * * *"
+    schedule: "*/3 * * * *"
     backoffLimit: 3
   initOracle:
-    enabled: true
+    enabled: false
     schedule: "*/30 * * * *"
     backoffLimit: 3
 
 ingress:
-  enabled: false
+  enabled: true
   hostname: "app.getorlo.info"
-  healthCheckId: ""  # Route53 health check ID (optional, created in Terraform)
+  healthCheckId: ""  # TODO: populate after Terraform creates standalone health checks
 
 keda:
   enabled: true

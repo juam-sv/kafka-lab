@@ -76,7 +76,10 @@ spec:
                                   raise
               env:
                 - name: KAFKA_BROKER
-                  value: {{ .Values.kafka.brokers | quote }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "kafka-lab.producerSecretName" . }}
+                      key: KAFKA_BROKER
                 - name: AWS_REGION
                   value: {{ .Values.region | quote }}
 {{- end }}

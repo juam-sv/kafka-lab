@@ -61,6 +61,27 @@ API secret name.
 {{- end }}
 
 {{/*
+Producer secret name.
+*/}}
+{{- define "kafka-lab.producerSecretName" -}}
+{{ include "kafka-lab.fullname" . }}-producer
+{{- end }}
+
+{{/*
+Consumer secret name.
+*/}}
+{{- define "kafka-lab.consumerSecretName" -}}
+{{ include "kafka-lab.fullname" . }}-consumer
+{{- end }}
+
+{{/*
+API secrets name.
+*/}}
+{{- define "kafka-lab.apiSecretsName" -}}
+{{ include "kafka-lab.fullname" . }}-api-secrets
+{{- end }}
+
+{{/*
 Database writer DSN (used by consumer). Falls back to database.dsn if writerDsn is empty.
 */}}
 {{- define "kafka-lab.writerDsn" -}}

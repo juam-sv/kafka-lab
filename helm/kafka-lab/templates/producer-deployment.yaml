@@ -39,8 +39,8 @@ spec:
           env:
             - name: KAFKA_BROKER
               valueFrom:
-                configMapKeyRef:
-                  name: {{ include "kafka-lab.configmapName" . }}
+                secretKeyRef:
+                  name: {{ include "kafka-lab.producerSecretName" . }}
                   key: KAFKA_BROKER
             - name: KAFKA_USE_MSK
               valueFrom:

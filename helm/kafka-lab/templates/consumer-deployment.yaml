@@ -41,8 +41,8 @@ spec:
           env:
             - name: KAFKA_BROKER
               valueFrom:
-                configMapKeyRef:
-                  name: {{ include "kafka-lab.configmapName" . }}
+                secretKeyRef:
+                  name: {{ include "kafka-lab.consumerSecretName" . }}
                   key: KAFKA_BROKER
             - name: KAFKA_USE_MSK
               valueFrom:
@@ -57,17 +57,17 @@ spec:
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  name: {{ include "kafka-lab.consumerSecretName" . }}
                   key: DB_USER
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  name: {{ include "kafka-lab.consumerSecretName" . }}
                   key: DB_PASSWORD
             - name: DB_DSN
               valueFrom:
                 secretKeyRef:
-                  name: {{ include "kafka-lab.oracleSecretName" . }}
+                  name: {{ include "kafka-lab.consumerSecretName" . }}
                   key: DB_WRITER_DSN
           resources:
             {{- toYaml .Values.consumer.resources | nindent 12 }}
