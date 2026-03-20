@@ -5,6 +5,5 @@ metadata:
   labels:
     {{- include "kafka-lab.labels" . | nindent 4 }}
 data:
-  KAFKA_BROKER: {{ .Values.kafka.brokers | quote }}
   KAFKA_USE_MSK: {{ .Values.kafka.useMsk | quote }}
   AWS_REGION: {{ .Values.region | quote }}

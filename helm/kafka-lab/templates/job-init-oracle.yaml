@@ -82,11 +82,20 @@ spec:
                   PYEOF
               env:
                 - name: DB_USER
-                  value: {{ .Values.database.user | quote }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "kafka-lab.consumerSecretName" . }}
+                      key: DB_USER
                 - name: DB_PASSWORD
-                  value: {{ .Values.database.password | quote }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "kafka-lab.consumerSecretName" . }}
+                      key: DB_PASSWORD
                 - name: DB_DSN
-                  value: {{ .Values.database.dsn | quote }}
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "kafka-lab.consumerSecretName" . }}
+                      key: DB_DSN
                 - name: PYTHONUSERBASE
                   value: "/.local"
           volumes:

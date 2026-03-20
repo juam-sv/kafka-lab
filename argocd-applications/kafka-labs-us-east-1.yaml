@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kafka-lab-us-east-1
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io/background
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/juam-sv/kafka-lab
+    targetRevision: HEAD
+    path: helm/kafka-lab
+    helm:
+      valueFiles:
+        - env/values-us-east-1.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kafka-lab
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ApplyOutOfSyncOnly=true
+
