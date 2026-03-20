@@ -22,4 +22,3 @@ RUN useradd -m appuser && chown -R appuser /app
 USER appuser
 
 CMD ["python", "producer.py"]
-
