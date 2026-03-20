@@ -27,7 +27,7 @@ producer:
   secretPath: "/poc/eks/producer"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/producer
-    tag: "0.4.1"
+    tag: "0.4.2"
   replicas: 0
   msgPerSec: 1
   serviceAccount:
@@ -45,7 +45,7 @@ consumer:
   secretPath: "/poc/eks/consumer"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/consumer
-    tag: "0.4.1"
+    tag: "0.4.2"
   replicas: 0
   serviceAccount:
     roleName: consumer-use2
@@ -62,7 +62,7 @@ api:
   secretPath: "/poc/eks/api"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/api
-    tag: "0.4.1"
+    tag: "0.4.2"
   replicas: 1
   port: 8000
   serviceAccount:
@@ -85,7 +85,7 @@ frontend:
   enabled: true
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/frontend
-    tag: "0.4.1"
+    tag: "0.4.2"
   replicas: 1
   port: 8080
   serviceAccount:
