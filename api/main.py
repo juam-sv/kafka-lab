@@ -3,13 +3,16 @@ import logging
 import math
 import os
 import time
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import oracledb
 import redis
-from fastapi import FastAPI, Query, Request
+from confluent_kafka import Producer
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,9 +54,51 @@ CACHE_PASSWORD = os.getenv("CACHE_PASSWORD", None)
 CACHE_TTL = int(os.getenv("CACHE_TTL", "120"))
 CACHE_COUNT_TTL = int(os.getenv("CACHE_COUNT_TTL", "300"))
 
+KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
+KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
+AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
+
 VALID_SORT_COLUMNS = {"amount", "created_at", "status", "txn_type", "currency"}
 
 pool = None
+kafka_producer = None
+
+
+class TransactionCreate(BaseModel):
+    source_account: str = Field(..., min_length=1, max_length=100)
+    target_account: str = Field(..., min_length=1, max_length=100)
+    amount: float = Field(..., gt=0)
+    currency: str = Field(..., pattern=r"^(USD|BRL|EUR)$")
+    txn_type: str = Field(..., pattern=r"^(TRANSFER|PAYMENT|WITHDRAWAL|DEPOSIT)$")
+
+
+def _create_kafka_producer():
+    """Create Kafka producer."""
+    try:
+        kafka_conf = {"bootstrap.servers": KAFKA_BROKER}
+        if KAFKA_USE_MSK:
+            from aws_msk_iam_sasl_signer import MSKAuthTokenProvider
+
+            def oauth_cb(config):  # noqa: ARG001
+                token, expiry_ms = MSKAuthTokenProvider.generate_auth_token(
+                    AWS_REGION,
+                )
+                return token, expiry_ms / 1000
+
+            kafka_conf.update({
+                "security.protocol": "SASL_SSL",
+                "sasl.mechanism": "OAUTHBEARER",
+                "oauth_cb": oauth_cb,
+            })
+        producer = Producer(kafka_conf)
+        logger.info(
+            "Kafka producer created — broker=%s msk=%s",
+            KAFKA_BROKER, KAFKA_USE_MSK,
+        )
+        return producer
+    except Exception:
+        logger.exception("Failed to create Kafka producer")
+        return None
 
 
 def _create_pool():
@@ -112,24 +157,30 @@ def rows_to_dicts(cursor, rows):
 
 @app.on_event("startup")
 def on_startup():
-    global cache, pool
+    global cache, pool, kafka_producer
     if cache is None:
         logger.info("Retrying cache connection at startup...")
         cache = _connect_cache()
     pool = _create_pool()
+    kafka_producer = _create_kafka_producer()
     logger.info(
         "API started — DSN=%s CACHE=%s:%s TLS=%s TTL=%ds "
-        "COUNT_TTL=%ds pool=%s status=%s",
+        "COUNT_TTL=%ds pool=%s cache=%s kafka=%s",
         DB_DSN, CACHE_HOST, CACHE_PORT, CACHE_TLS,
         CACHE_TTL, CACHE_COUNT_TTL,
         "active" if pool else "none",
         "connected" if cache else "disconnected",
+        "connected" if kafka_producer else "disconnected",
     )
 
 
 @app.on_event("shutdown")
 def on_shutdown():
-    global pool
+    global pool, kafka_producer
+    if kafka_producer:
+        kafka_producer.flush(timeout=5)
+        logger.info("Kafka producer flushed")
+        kafka_producer = None
     if pool:
         pool.close()
         logger.info("Oracle connection pool closed")
@@ -304,5 +355,101 @@ def list_transactions(
             logger.info(f"Cache SET for key: {cache_key} (TTL: {data_ttl}s)")
         except Exception as e:
             logger.error(f"Cache storage error: {e}")
+
+    return result
+
+
+@app.post("/transactions")
+def create_transaction(txn: TransactionCreate):
+    if kafka_producer is None:
+        raise HTTPException(status_code=503, detail="Kafka producer not available")
+
+    transaction_id = str(uuid.uuid4())
+    message = {
+        "transaction_id": transaction_id,
+        "source_account": txn.source_account,
+        "target_account": txn.target_account,
+        "amount": txn.amount,
+        "currency": txn.currency,
+        "txn_type": txn.txn_type,
+        "timestamp": datetime.now(UTC).isoformat(),
+    }
+
+    try:
+        kafka_producer.produce(
+            "financial.transactions",
+            json.dumps(message).encode("utf-8"),
+        )
+        kafka_producer.poll(0)
+        logger.info("Transaction submitted to Kafka: %s", transaction_id)
+    except Exception as exc:
+        logger.exception("Failed to produce message to Kafka")
+        raise HTTPException(
+            status_code=500, detail="Failed to submit transaction",
+        ) from exc
+
+    return {"transaction_id": transaction_id, "status": "submitted"}
+
+
+@app.get("/transactions/{transaction_id}")
+def get_transaction(transaction_id: str):
+    cache_key = f"txn:{transaction_id}"
+
+    if cache:
+        try:
+            cached = cache.get(cache_key)
+            if cached:
+                logger.info("Cache HIT for txn: %s", transaction_id)
+                data = json.loads(cached)
+                data["cached"] = True
+                data["source"] = "cache"
+                return data
+        except Exception as e:
+            logger.error("Cache retrieval error for txn %s: %s", transaction_id, e)
+
+    if pool:
+        conn = pool.acquire()
+    else:
+        conn = oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT * FROM transactions WHERE transaction_id = :txn_id",
+            {"txn_id": transaction_id},
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(
+                status_code=404,
+                detail="Transaction not found — it may still be processing",
+            )
+        result = rows_to_dicts(cur, [row])[0]
+    except HTTPException:
+        raise
+    except oracledb.Error:
+        logger.exception("DB query failed for txn: %s", transaction_id)
+        raise
+    finally:
+        if pool:
+            pool.release(conn)
+        else:
+            conn.close()
+
+    for k, v in result.items():
+        if isinstance(v, datetime):
+            result[k] = v.isoformat()
+        elif isinstance(v, Decimal):
+            result[k] = float(v)
+
+    result["cached"] = False
+    result["source"] = "database"
+
+    if cache:
+        try:
+            cache.set(cache_key, json.dumps(result), ex=CACHE_TTL)
+            logger.info("Cache SET for txn: %s (TTL: %ds)", transaction_id, CACHE_TTL)
+        except Exception as e:
+            logger.error("Cache storage error for txn %s: %s", transaction_id, e)
 
     return result

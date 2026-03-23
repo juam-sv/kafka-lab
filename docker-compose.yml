@@ -105,7 +105,10 @@ services:
       DB_DSN: ${DB_DSN}
       CACHE_HOST: 'valkey'
       CACHE_TTL: ${CACHE_TTL:-120}
+      KAFKA_BROKER: ${KAFKA_BROKER}
     depends_on:
+      broker:
+        condition: service_healthy
       oracle:
         condition: service_healthy
       valkey:

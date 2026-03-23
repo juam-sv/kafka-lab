@@ -11,9 +11,9 @@ Real-time financial transaction processing PoC: Producer generates synthetic tra
 - **Kafka**: Confluent 7.8.0, KRaft mode (no Zookeeper), topic: `financial.transactions`
 - **Database**: Oracle 21c XE (`gvenzl/oracle-xe:21-slim`), schema in `init.sql`
 - **Producer/Consumer**: Python 3.11 (`app/producer.py`, `app/consumer.py`) — confluent-kafka, oracledb, tenacity
-- **API**: Python 3.12, FastAPI (`api/main.py`) — oracledb, redis
+- **API**: Python 3.12, FastAPI (`api/main.py`) — oracledb, redis, confluent-kafka
 - **Cache**: Valkey 8 (Redis-compatible, TTL configurable via `CACHE_TTL`, default 120s)
-- **Frontend**: Vanilla HTML/CSS/JS SPA (`frontend/index.html`) served by Nginx
+- **Frontend**: React 19 + Vite + TypeScript + Tailwind CSS v4 (`frontend/src/`) served by Nginx
 - **Monitoring**: Confluent Control Center on port 9021
 
 ## Build & Run
@@ -55,8 +55,8 @@ Producer → Kafka (financial.transactions) → Consumer → Oracle DB → API (
 
 - **Producer** (`app/producer.py`): Generates random transactions at `MSG_PER_SEC` rate. Supports AWS MSK IAM auth (SASL_SSL/OAUTHBEARER) in production.
 - **Consumer** (`app/consumer.py`): Enriches with fraud status, inserts to `transactions` table. Retries DB connection via tenacity (10 attempts, 3s intervals).
-- **API** (`api/main.py`): `GET /transactions` with query params: `page`, `per_page`, `sort_by`, `sort_order`, `status`, `date_from`, `date_to`. Valkey/Redis caching with key-per-query-combination.
-- **Frontend** (`frontend/index.html`): Dark-themed dashboard. Auto-refresh every 5s (toggleable). Highlights suspicious transactions.
+- **API** (`api/main.py`): `GET /transactions` (paginated list), `POST /transactions` (publish to Kafka), `GET /transactions/{transaction_id}` (lookup by ID). Valkey/Redis caching with key-per-query-combination.
+- **Frontend** (`frontend/src/`): React SPA with three tabs — Transactions (paginated table with filters, sort, auto-refresh), Insert (form → Kafka), Search (by transaction ID). Dark-themed, Tailwind CSS v4.
 
 ## Kubernetes (Helm)
 
