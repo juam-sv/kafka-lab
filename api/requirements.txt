@@ -3,3 +3,5 @@ starlette==0.49.1
 uvicorn==0.34.0
 oracledb==2.5.0
 redis==5.2.1
+confluent-kafka==2.13.2
+aws-msk-iam-sasl-signer-python==1.0.2

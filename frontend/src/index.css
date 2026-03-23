@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-primary: #0f1117;
+  --color-bg-secondary: #161b22;
+  --color-bg-tertiary: #1c2128;
+  --color-border-primary: #21262d;
+  --color-border-secondary: #30363d;
+  --color-text-primary: #e1e4e8;
+  --color-text-secondary: #8b949e;
+  --color-accent-blue: #58a6ff;
+  --color-accent-green: #238636;
+  --color-accent-green-text: #56d364;
+  --color-accent-orange: #f0883e;
+  --color-badge-green-bg: #1a5d2a;
+  --color-badge-orange-bg: #5a3420;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    sans-serif;
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  min-height: 100vh;
+  margin: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

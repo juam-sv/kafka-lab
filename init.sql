@@ -15,3 +15,4 @@ CREATE TABLE finance_user.transactions (
 CREATE INDEX idx_txn_created_at ON finance_user.transactions (created_at DESC);
 CREATE INDEX idx_txn_status_date ON finance_user.transactions (status, created_at DESC);
 CREATE INDEX idx_txn_amount ON finance_user.transactions (amount);
+CREATE UNIQUE INDEX idx_txn_transaction_id ON finance_user.transactions (transaction_id);
