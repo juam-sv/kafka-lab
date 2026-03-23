@@ -8,11 +8,11 @@ aws:
 
 externalSecrets:
   enabled: true
-  refreshInterval: 1h
+  refreshInterval: 1m
 
 kafka:
   # Brokers kept for KEDA ScaledObject metadata (not injected into pods)
-  brokers: "b-1.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098,b-2.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098,b-3.mskicpocuseast1.9gfgq4.c17.kafka.us-east-1.amazonaws.com:9098"
+  brokers: "b-1.mskicpocuseast1.upq2zv.c17.kafka.us-east-1.amazonaws.com:9098,b-2.mskicpocuseast1.upq2zv.c17.kafka.us-east-1.amazonaws.com:9098,b-3.mskicpocuseast1.upq2zv.c17.kafka.us-east-1.amazonaws.com:9098"
   useMsk: true
   topic: financial.transactions
   partitions: 3
