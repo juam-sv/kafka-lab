@@ -38,6 +38,21 @@ spec:
             - name: tmp
               mountPath: /tmp
           env:
+            - name: KAFKA_BROKER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "kafka-lab.apiSecretsName" . }}
+                  key: KAFKA_BROKER
+            - name: KAFKA_USE_MSK
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: KAFKA_USE_MSK
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: AWS_REGION
             - name: DB_USER
               valueFrom:
                 secretKeyRef:
