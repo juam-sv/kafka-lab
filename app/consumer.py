@@ -1,12 +1,17 @@
 import json
 import logging
 import os
+import time
 
 import oracledb
 from confluent_kafka import Consumer
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 logger = logging.getLogger(__name__)
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
@@ -23,8 +28,12 @@ DB_DSN = os.getenv("DB_DSN")
     before_sleep=before_sleep_log(logger, logging.WARNING),
 )
 def get_db_conn():
-    logger.info(f"Connecting to Oracle DSN: {DB_DSN} as {DB_USER}")
-    return oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
+    logger.info("Connecting to Oracle — DSN=%s user=%s", DB_DSN, DB_USER)
+    start = time.perf_counter()
+    conn = oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info("Oracle connected — DSN=%s elapsed=%.0fms", DB_DSN, elapsed_ms)
+    return conn
 
 
 conf = {
@@ -48,10 +57,11 @@ if KAFKA_USE_MSK:
 
 c = Consumer(conf)
 c.subscribe(["financial.transactions"])
+logger.info("Kafka consumer subscribed — broker=%s msk=%s", KAFKA_BROKER, KAFKA_USE_MSK)
 conn = get_db_conn()
 cursor = conn.cursor()
 
-print("Finance Consumer started...")
+logger.info("Finance Consumer started — polling for messages")
 
 try:
     while True:
@@ -78,9 +88,9 @@ try:
 
         status = "APPROVED" if data["amount"] < 4000 else "SUSPICIOUS"
 
-        print(
-            f"Processed {data['transaction_id']} | "
-            f"Amount: {data['amount']} | Status: {status}"
+        logger.info(
+            "Processed %s | Amount: %s | Status: %s",
+            data["transaction_id"], data["amount"], status,
         )
 
         cursor.execute(

@@ -1,8 +1,10 @@
 import type {
+  SearchField,
   TransactionCreatePayload,
   TransactionCreateResponse,
   TransactionDetail,
   TransactionFilters,
+  TransactionSearchResponse,
   TransactionsResponse,
 } from "../types";
 import { apiFetch } from "./client";
@@ -31,6 +33,17 @@ export function getTransactionById(
   signal?: AbortSignal,
 ): Promise<TransactionDetail> {
   return apiFetch<TransactionDetail>(`/transactions/${transactionId}`, {
+    signal,
+  });
+}
+
+export function searchTransactions(
+  field: SearchField,
+  value: string,
+  signal?: AbortSignal,
+): Promise<TransactionSearchResponse> {
+  const params = new URLSearchParams({ field, value });
+  return apiFetch<TransactionSearchResponse>(`/transactions/search?${params}`, {
     signal,
   });
 }

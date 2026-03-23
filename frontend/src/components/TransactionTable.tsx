@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SortColumn, SortOrder, Transaction } from "../types";
 import StatusBadge from "./StatusBadge";
 
@@ -30,6 +31,17 @@ export default function TransactionTable({
   onSort,
   loading,
 }: Props) {
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggleExpand = (id: number) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div
       className={`overflow-hidden rounded-lg transition-opacity ${loading ? "pointer-events-none opacity-50" : ""}`}
@@ -81,10 +93,15 @@ export default function TransactionTable({
                   {r.id}
                 </td>
                 <td
-                  className="border-b border-border-primary px-3.5 py-2.5 text-[0.83rem]"
-                  title={r.transaction_id}
+                  className="border-b border-border-primary px-3.5 py-2.5 text-[0.83rem] cursor-pointer select-none"
+                  title={expandedIds.has(r.id) ? undefined : r.transaction_id}
+                  onClick={() => toggleExpand(r.id)}
                 >
-                  {r.transaction_id.slice(0, 8)}&hellip;
+                  {expandedIds.has(r.id) ? (
+                    <span className="font-mono text-[0.78rem]">{r.transaction_id}</span>
+                  ) : (
+                    <>{r.transaction_id.slice(0, 8)}&hellip;</>
+                  )}
                 </td>
                 <td className="border-b border-border-primary px-3.5 py-2.5 text-[0.83rem]">
                   {r.source_account}

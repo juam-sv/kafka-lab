@@ -8,7 +8,7 @@ aws:
 
 externalSecrets:
   enabled: true
-  refreshInterval: 1h
+  refreshInterval: 1m
 
 kafka:
   # Brokers kept for KEDA ScaledObject metadata (not injected into pods)

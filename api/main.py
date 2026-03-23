@@ -391,6 +391,51 @@ def create_transaction(txn: TransactionCreate):
     return {"transaction_id": transaction_id, "status": "submitted"}
 
 
+SEARCH_FIELDS = {"transaction_id", "source_account", "target_account"}
+
+
+@app.get("/transactions/search")
+def search_transactions(
+    field: str = Query(...),
+    value: str = Query(..., min_length=1),
+):
+    if field not in SEARCH_FIELDS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid field. Must be one of: {', '.join(sorted(SEARCH_FIELDS))}",
+        )
+
+    if pool:
+        conn = pool.acquire()
+    else:
+        conn = oracledb.connect(user=DB_USER, password=DB_PASSWORD, dsn=DB_DSN)
+
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            f"SELECT * FROM transactions WHERE {field} = :val",  # noqa: S608  # nosec B608
+            {"val": value},
+        )
+        rows = rows_to_dicts(cur, cur.fetchall())
+    except oracledb.Error:
+        logger.exception("Search query failed for %s=%s", field, value)
+        raise
+    finally:
+        if pool:
+            pool.release(conn)
+        else:
+            conn.close()
+
+    for r in rows:
+        for k, v in r.items():
+            if isinstance(v, datetime):
+                r[k] = v.isoformat()
+            elif isinstance(v, Decimal):
+                r[k] = float(v)
+
+    return {"data": rows}
+
+
 @app.get("/transactions/{transaction_id}")
 def get_transaction(transaction_id: str):
     cache_key = f"txn:{transaction_id}"
