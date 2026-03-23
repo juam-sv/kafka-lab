@@ -16,3 +16,5 @@ CREATE INDEX idx_txn_created_at ON finance_user.transactions (created_at DESC);
 CREATE INDEX idx_txn_status_date ON finance_user.transactions (status, created_at DESC);
 CREATE INDEX idx_txn_amount ON finance_user.transactions (amount);
 CREATE UNIQUE INDEX idx_txn_transaction_id ON finance_user.transactions (transaction_id);
+CREATE INDEX idx_txn_source_account ON finance_user.transactions (source_account);
+CREATE INDEX idx_txn_target_account ON finance_user.transactions (target_account);

@@ -42,6 +42,11 @@ export interface TransactionCreateResponse {
 
 export type SortColumn = "amount" | "created_at" | "status" | "txn_type" | "currency";
 export type SortOrder = "asc" | "desc";
+export type SearchField = "transaction_id" | "source_account" | "target_account";
+
+export interface TransactionSearchResponse {
+  data: Transaction[];
+}
 
 export interface TransactionFilters {
   page: number;
