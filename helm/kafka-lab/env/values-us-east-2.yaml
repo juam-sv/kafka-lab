@@ -28,7 +28,7 @@ producer:
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/producer
     tag: "0.7.2"
-  replicas: 0
+  replicas: 1
   msgPerSec: 1
   serviceAccount:
     roleName: producer-use2
@@ -109,11 +109,11 @@ jobs:
   ttlSecondsAfterFinished: 120
   createTopic:
     enabled: true
-    schedule: "*/30 * * * *"
+    schedule: "*/3 * * * *"
     backoffLimit: 3
   initOracle:
     enabled: true
-    schedule: "*/30 * * * *"
+    schedule: "*/3 * * * *"
     backoffLimit: 3
 
 ingress:
