@@ -81,7 +81,7 @@ spec:
                       ("idx_txn_created_at", "CREATE INDEX idx_txn_created_at ON transactions (created_at DESC)"),
                       ("idx_txn_status_date", "CREATE INDEX idx_txn_status_date ON transactions (status, created_at DESC)"),
                       ("idx_txn_amount", "CREATE INDEX idx_txn_amount ON transactions (amount)"),
-                      ("idx_txn_transaction_id", "CREATE UNIQUE INDEX idx_txn_transaction_id ON transactions (transaction_id)"),
+                      ("idx_txn_transaction_id", "CREATE INDEX idx_txn_transaction_id ON transactions (transaction_id)"),
                       ("idx_txn_source_account", "CREATE INDEX idx_txn_source_account ON transactions (source_account)"),
                       ("idx_txn_target_account", "CREATE INDEX idx_txn_target_account ON transactions (target_account)"),
                   ]
@@ -92,8 +92,8 @@ spec:
                           print(f"Index '{idx_name}' created successfully")
                       except oracledb.DatabaseError as e:
                           error = e.args[0]
-                          if error.code == 955:
-                              print(f"Index '{idx_name}' already exists - skipping")
+                          if error.code in (955, 1452):
+                              print(f"Index '{idx_name}' skipped (ORA-{error.code:05d})")
                           else:
                               raise
 
