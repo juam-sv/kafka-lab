@@ -1,5 +1,6 @@
 import json
 import os
+import pathlib
 import random
 import time
 import uuid
@@ -39,10 +40,12 @@ def delivery_report(err, msg):
         print(f"Sent Txn: {msg.value().decode('utf-8')}")
 
 
+HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108
 txn_types = ["TRANSFER", "PAYMENT", "WITHDRAWAL", "DEPOSIT"]
 currencies = ["USD", "BRL", "EUR"]
 
 while True:
+    HEALTH_FILE.touch()
     data = {
         "transaction_id": str(uuid.uuid4()),
         "source_account": f"ACC-{crypto_random.randint(1000, 9999)}",

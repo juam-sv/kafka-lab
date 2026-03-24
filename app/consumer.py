@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pathlib
 import time
 
 import oracledb
@@ -99,12 +100,14 @@ else:
 
 logger.info("Finance Consumer started — polling for messages")
 
+HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108
 _msg_count = 0
 _last_stats_time = time.monotonic()
 _stats_interval = 30
 
 try:
     while True:
+        HEALTH_FILE.touch()
         msg = c.poll(1.0)
         if msg is None:
             continue

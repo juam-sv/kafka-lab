@@ -73,6 +73,18 @@ spec:
               value: {{ .Values.consumer.consumerGroup | default .Values.keda.kafka.consumerGroup | quote }}
             - name: MAX_MSG_PER_SEC
               value: {{ .Values.consumer.maxMsgPerSec | default 0 | quote }}
+          startupProbe:
+            exec:
+              command: ["find", "/tmp/healthy", "-mmin", "-1"]
+            initialDelaySeconds: {{ .Values.consumer.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.consumer.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.consumer.startupProbe.failureThreshold }}
+          livenessProbe:
+            exec:
+              command: ["find", "/tmp/healthy", "-mmin", "-1"]
+            initialDelaySeconds: {{ .Values.consumer.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.consumer.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.consumer.livenessProbe.failureThreshold }}
           resources:
             {{- toYaml .Values.consumer.resources | nindent 12 }}
       volumes:

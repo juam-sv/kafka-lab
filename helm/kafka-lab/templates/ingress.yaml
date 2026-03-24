@@ -11,7 +11,7 @@ metadata:
     alb.ingress.kubernetes.io/group.name: internet-facing
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
     alb.ingress.kubernetes.io/ssl-redirect: "443"
-    alb.ingress.kubernetes.io/healthcheck-path: /api/docs
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
     alb.ingress.kubernetes.io/healthcheck-port: "8000"
     # external-dns: latency-based routing
     external-dns.alpha.kubernetes.io/hostname: {{ .Values.ingress.hostname }}

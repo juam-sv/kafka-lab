@@ -56,6 +56,18 @@ spec:
               value: {{ .Values.producer.msgPerSec | quote }}
             - name: USE_MESSAGE_KEY
               value: {{ .Values.producer.useMessageKey | quote }}
+          startupProbe:
+            exec:
+              command: ["find", "/tmp/healthy", "-mmin", "-1"]
+            initialDelaySeconds: {{ .Values.producer.startupProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.producer.startupProbe.periodSeconds }}
+            failureThreshold: {{ .Values.producer.startupProbe.failureThreshold }}
+          livenessProbe:
+            exec:
+              command: ["find", "/tmp/healthy", "-mmin", "-1"]
+            initialDelaySeconds: {{ .Values.producer.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.producer.livenessProbe.periodSeconds }}
+            failureThreshold: {{ .Values.producer.livenessProbe.failureThreshold }}
           resources:
             {{- toYaml .Values.producer.resources | nindent 12 }}
       volumes:

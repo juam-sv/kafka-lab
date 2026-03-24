@@ -187,6 +187,52 @@ def on_shutdown():
         pool = None
 
 
+@app.get("/health")
+def health():
+    """Liveness probe — app process is running."""
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+def ready():
+    """Readiness probe — checks DB pool and cache connectivity."""
+    checks = {}
+    healthy = True
+
+    if pool:
+        try:
+            conn = pool.acquire()
+            conn.ping()
+            pool.release(conn)
+            checks["database"] = "ok"
+        except Exception as e:
+            checks["database"] = str(e)
+            healthy = False
+    else:
+        checks["database"] = "pool not initialized"
+        healthy = False
+
+    if cache:
+        try:
+            cache.ping()
+            checks["cache"] = "ok"
+        except Exception as e:
+            checks["cache"] = str(e)
+            healthy = False
+    else:
+        checks["cache"] = "not connected"
+
+    if kafka_producer:
+        checks["kafka"] = "ok"
+    else:
+        checks["kafka"] = "producer not initialized"
+        healthy = False
+
+    if not healthy:
+        raise HTTPException(status_code=503, detail=checks)
+    return {"status": "ok", "checks": checks}
+
+
 @app.get("/cache-status")
 def cache_status():
     """Diagnostic endpoint for cache connectivity."""
