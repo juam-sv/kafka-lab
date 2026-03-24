@@ -59,6 +59,20 @@ services:
       CONFLUENT_METRICS_TOPIC_REPLICATION: 1
       PORT: 9021
 
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.0
+    container_name: otel-collector
+    ports:
+      - "4317:4317"
+      - "4318:4318"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:13133/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   producer:
     build:
       context: ./app
@@ -68,6 +82,9 @@ services:
       KAFKA_BROKER: ${KAFKA_BROKER}
       MSG_PER_SEC: ${MSG_PER_SEC}
       USE_MESSAGE_KEY: ${USE_MESSAGE_KEY:-false}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_DEPLOYMENT_ENVIRONMENT: "local"
     depends_on:
       broker:
         condition: service_healthy
@@ -90,6 +107,9 @@ services:
       DB_DSN: ${DB_DSN}
       CONSUMER_GROUP: ${CONSUMER_GROUP:-finance-group}
       MAX_MSG_PER_SEC: ${MAX_MSG_PER_SEC:-0}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_DEPLOYMENT_ENVIRONMENT: "local"
     depends_on:
       broker:
         condition: service_healthy
@@ -121,6 +141,9 @@ services:
       CACHE_HOST: 'valkey'
       CACHE_TTL: ${CACHE_TTL:-120}
       KAFKA_BROKER: ${KAFKA_BROKER}
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://otel-collector:4317"
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_DEPLOYMENT_ENVIRONMENT: "local"
     depends_on:
       broker:
         condition: service_healthy

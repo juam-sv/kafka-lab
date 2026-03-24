@@ -144,6 +144,13 @@ failoverConsumer:
   enabled: false
   peerConsumerGroup: "finance-group-use2"
 
+otel:
+  enabled: true
+  collectorEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4317"
+  collectorHttpEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4318"
+  insecure: "true"
+  environment: "poc"
+
 keda:
   enabled: true
   minReplicas: 1

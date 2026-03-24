@@ -7,6 +7,11 @@ import uuid
 from datetime import UTC, datetime
 
 from confluent_kafka import Producer
+from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
+
+from otel_setup import init_tracer
+
+tracer = init_tracer("producer")
 
 KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
 KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
@@ -29,7 +34,7 @@ if KAFKA_USE_MSK:
         "oauth_cb": oauth_cb,
     })
 
-p = Producer(kafka_conf)
+p = ConfluentKafkaInstrumentor().instrument_producer(Producer(kafka_conf))
 crypto_random = random.SystemRandom()
 
 

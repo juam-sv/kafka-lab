@@ -22,6 +22,10 @@ logging.basicConfig(
 logger = logging.getLogger("api")
 
 app = FastAPI(root_path="/api")
+
+from otel_setup import init_tracer
+
+tracer = init_tracer(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -343,23 +347,32 @@ def list_transactions(
             except Exception as e:
                 logger.error(f"Count cache retrieval error: {e}")
 
-        if total is None:
-            cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
-            total = cur.fetchone()[0]
-            if cache:
-                try:
-                    cache.set(count_cache_key, str(total), ex=CACHE_COUNT_TTL)
-                    logger.info(f"Count cache SET: {total} (TTL: {CACHE_COUNT_TTL}s)")
-                except Exception as e:
-                    logger.error(f"Count cache storage error: {e}")
+        with tracer.start_as_current_span("db.query_transactions", attributes={
+            "db.system": "oracle",
+            "db.operation": "SELECT",
+            "db.sql.table": "transactions",
+            "api.page": page,
+            "api.per_page": per_page,
+            "server.address": DB_DSN.split(":")[0],
+        }) as span:
+            if total is None:
+                cur.execute(f"SELECT COUNT(*) FROM transactions {where}", params)  # noqa: S608  # nosec B608
+                total = cur.fetchone()[0]
+                if cache:
+                    try:
+                        cache.set(count_cache_key, str(total), ex=CACHE_COUNT_TTL)
+                        logger.info(f"Count cache SET: {total} (TTL: {CACHE_COUNT_TTL}s)")
+                    except Exception as e:
+                        logger.error(f"Count cache storage error: {e}")
 
-        cur.execute(
-            f"SELECT * FROM transactions {where} "  # noqa: S608  # nosec B608
-            f"ORDER BY {sort_by} {sort_order} "
-            f"OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY",
-            page_params,
-        )
-        rows = rows_to_dicts(cur, cur.fetchall())
+            cur.execute(
+                f"SELECT * FROM transactions {where} "  # noqa: S608  # nosec B608
+                f"ORDER BY {sort_by} {sort_order} "
+                f"OFFSET :offset ROWS FETCH NEXT :per_page ROWS ONLY",
+                page_params,
+            )
+            rows = rows_to_dicts(cur, cur.fetchall())
+            span.set_attribute("db.row_count", len(rows))
         db_ms = (time.perf_counter() - db_start) * 1000
         logger.info("DB query: %d rows, %d total, %.1fms", len(rows), total, db_ms)
     except oracledb.Error:
@@ -458,11 +471,17 @@ def search_transactions(
 
     try:
         cur = conn.cursor()
-        cur.execute(
-            f"SELECT * FROM transactions WHERE {field} = :val",  # noqa: S608  # nosec B608
-            {"val": value},
-        )
-        rows = rows_to_dicts(cur, cur.fetchall())
+        with tracer.start_as_current_span("db.search_transactions", attributes={
+            "db.system": "oracle",
+            "db.operation": "SELECT",
+            "db.sql.table": "transactions",
+            "server.address": DB_DSN.split(":")[0],
+        }):
+            cur.execute(
+                f"SELECT * FROM transactions WHERE {field} = :val",  # noqa: S608  # nosec B608
+                {"val": value},
+            )
+            rows = rows_to_dicts(cur, cur.fetchall())
     except oracledb.Error:
         logger.exception("Search query failed for %s=%s", field, value)
         raise
@@ -505,17 +524,23 @@ def get_transaction(transaction_id: str):
 
     try:
         cur = conn.cursor()
-        cur.execute(
-            "SELECT * FROM transactions WHERE transaction_id = :txn_id",
-            {"txn_id": transaction_id},
-        )
-        row = cur.fetchone()
-        if not row:
-            raise HTTPException(
-                status_code=404,
-                detail="Transaction not found — it may still be processing",
+        with tracer.start_as_current_span("db.query_transaction", attributes={
+            "db.system": "oracle",
+            "db.operation": "SELECT",
+            "db.sql.table": "transactions",
+            "server.address": DB_DSN.split(":")[0],
+        }):
+            cur.execute(
+                "SELECT * FROM transactions WHERE transaction_id = :txn_id",
+                {"txn_id": transaction_id},
             )
-        result = rows_to_dicts(cur, [row])[0]
+            row = cur.fetchone()
+            if not row:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Transaction not found — it may still be processing",
+                )
+            result = rows_to_dicts(cur, [row])[0]
     except HTTPException:
         raise
     except oracledb.Error:

@@ -1,3 +1,4 @@
+import "./otel"; // Must be first import — instruments fetch() before any API calls
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";

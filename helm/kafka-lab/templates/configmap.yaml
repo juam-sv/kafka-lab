@@ -7,3 +7,8 @@ metadata:
 data:
   KAFKA_USE_MSK: {{ .Values.kafka.useMsk | quote }}
   AWS_REGION: {{ .Values.region | quote }}
+  {{- if .Values.otel.enabled }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.otel.collectorEndpoint | quote }}
+  OTEL_EXPORTER_OTLP_INSECURE: {{ .Values.otel.insecure | quote }}
+  OTEL_DEPLOYMENT_ENVIRONMENT: {{ .Values.otel.environment | quote }}
+  {{- end }}
