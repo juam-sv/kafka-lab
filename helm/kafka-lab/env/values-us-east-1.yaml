@@ -120,6 +120,7 @@ jobs:
 ingress:
   enabled: true
   hostname: "app.getorlo.info"
+  regionalHostname: "app-use1.getorlo.info"
   healthCheckId: ""  # TODO: populate after Terraform creates standalone health checks
 
 failoverConsumer:
