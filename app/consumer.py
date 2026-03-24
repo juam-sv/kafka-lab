@@ -6,7 +6,8 @@ import time
 
 import oracledb
 from confluent_kafka import Consumer
-from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
+from opentelemetry.context import attach, detach
+from opentelemetry.propagate import extract
 from otel_setup import init_tracer
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
@@ -87,7 +88,7 @@ if KAFKA_USE_MSK:
         "oauth_cb": oauth_cb,
     })
 
-c = ConfluentKafkaInstrumentor().instrument_consumer(Consumer(conf))
+c = Consumer(conf)
 c.subscribe(["financial.transactions"])
 logger.info(
     "Kafka consumer subscribed — broker=%s msk=%s group=%s",
@@ -126,6 +127,14 @@ try:
             logger.warning("Empty message at offset %s, skipping", msg.offset())
             continue
 
+        # Extract trace context from Kafka message headers (W3C traceparent)
+        headers = {}
+        if msg.headers():
+            for k, v in msg.headers():
+                headers[k] = v.decode() if isinstance(v, bytes) else v
+        ctx = extract(headers)
+        token = attach(ctx)
+
         try:
             data = json.loads(raw.decode("utf-8"))
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
@@ -133,41 +142,50 @@ try:
                 "Malformed message at offset %s, skipping: %s",
                 msg.offset(), e,
             )
+            detach(token)
             continue
 
-        status = "APPROVED" if data["amount"] < 4000 else "SUSPICIOUS"
-
-        logger.info(
-            "Processed %s | Amount: %s | Status: %s",
-            data["transaction_id"], data["amount"], status,
-        )
-
-        with tracer.start_as_current_span("db.insert_transaction", attributes={
-            "db.system": "oracle",
-            "db.operation": "INSERT",
-            "db.sql.table": "transactions",
-            "server.address": (DB_DSN or "").split(":")[0],
+        with tracer.start_as_current_span("consumer.process", attributes={
+            "messaging.system": "kafka",
+            "messaging.operation": "process",
+            "messaging.destination.name": msg.topic(),
+            "messaging.kafka.consumer.group": CONSUMER_GROUP,
         }):
-            cursor.execute(
-                """MERGE INTO transactions t
-                   USING (SELECT :1 AS transaction_id FROM dual) s
-                   ON (t.transaction_id = s.transaction_id)
-                   WHEN NOT MATCHED THEN
-                     INSERT (transaction_id, source_account, target_account,
-                             amount, currency, txn_type, status)
-                     VALUES (:1, :2, :3, :4, :5, :6, :7)""",
-                (
-                    data["transaction_id"],
-                    data["transaction_id"],
-                    data["source_account"],
-                    data["target_account"],
-                    data["amount"],
-                    data["currency"],
-                    data["txn_type"],
-                    status,
-                ),
+            status = "APPROVED" if data["amount"] < 4000 else "SUSPICIOUS"
+
+            logger.info(
+                "Processed %s | Amount: %s | Status: %s",
+                data["transaction_id"], data["amount"], status,
             )
-            conn.commit()
+
+            with tracer.start_as_current_span("db.insert_transaction", attributes={
+                "db.system": "oracle",
+                "db.operation": "INSERT",
+                "db.sql.table": "transactions",
+                "server.address": (DB_DSN or "").split(":")[0],
+            }):
+                cursor.execute(
+                    """MERGE INTO transactions t
+                       USING (SELECT :1 AS transaction_id FROM dual) s
+                       ON (t.transaction_id = s.transaction_id)
+                       WHEN NOT MATCHED THEN
+                         INSERT (transaction_id, source_account, target_account,
+                                 amount, currency, txn_type, status)
+                         VALUES (:1, :2, :3, :4, :5, :6, :7)""",
+                    (
+                        data["transaction_id"],
+                        data["transaction_id"],
+                        data["source_account"],
+                        data["target_account"],
+                        data["amount"],
+                        data["currency"],
+                        data["txn_type"],
+                        status,
+                    ),
+                )
+                conn.commit()
+
+        detach(token)
 
         _msg_count += 1
         _now = time.monotonic()

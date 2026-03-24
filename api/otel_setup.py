@@ -1,9 +1,11 @@
 """OpenTelemetry initialization for FastAPI API."""
+import logging
 import os
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.instrumentation.redis import RedisInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
@@ -27,5 +29,6 @@ def init_tracer(app) -> trace.Tracer:
 
     FastAPIInstrumentor.instrument_app(app)
     RedisInstrumentor().instrument()
+    LoggingInstrumentor().instrument(set_logging_format=True, log_level=logging.INFO)
 
     return trace.get_tracer("api")

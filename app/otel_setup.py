@@ -1,8 +1,10 @@
 """OpenTelemetry initialization for producer/consumer."""
+import logging
 import os
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.logging import LoggingInstrumentor
 from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -22,4 +24,7 @@ def init_tracer(service_name: str) -> trace.Tracer:
     )
     provider.add_span_processor(BatchSpanProcessor(exporter))
     trace.set_tracer_provider(provider)
+
+    LoggingInstrumentor().instrument(set_logging_format=True, log_level=logging.INFO)
+
     return trace.get_tracer(service_name)
