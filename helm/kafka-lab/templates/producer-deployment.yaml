@@ -56,6 +56,23 @@ spec:
               value: {{ .Values.producer.msgPerSec | quote }}
             - name: USE_MESSAGE_KEY
               value: {{ .Values.producer.useMessageKey | quote }}
+            {{- if .Values.otel.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: OTEL_EXPORTER_OTLP_ENDPOINT
+            - name: OTEL_EXPORTER_OTLP_INSECURE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: OTEL_EXPORTER_OTLP_INSECURE
+            - name: OTEL_DEPLOYMENT_ENVIRONMENT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "kafka-lab.configmapName" . }}
+                  key: OTEL_DEPLOYMENT_ENVIRONMENT
+            {{- end }}
           startupProbe:
             exec:
               command: ["find", "/tmp/healthy", "-mmin", "-1"]
