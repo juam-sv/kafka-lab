@@ -13,6 +13,7 @@ producer:
       memory: 512Mi
 
 consumer:
+  maxMsgPerSec: 50   # Rate-limit each pod to force KEDA to scale more aggressively
   # Inflated CPU requests so ~6 consumers fill a c5.xlarge (4 vCPU),
   # forcing Karpenter to provision new nodes when KEDA scales beyond that.
   resources:

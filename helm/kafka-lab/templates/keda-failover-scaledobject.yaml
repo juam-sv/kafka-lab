@@ -1,23 +1,23 @@
-{{- if and .Values.keda.enabled .Values.consumer.enabled }}
+{{- if and .Values.keda.enabled .Values.failoverConsumer.enabled }}
 apiVersion: keda.sh/v1alpha1
 kind: ScaledObject
 metadata:
-  name: {{ include "kafka-lab.fullname" . }}-consumer-scaler
+  name: {{ include "kafka-lab.fullname" . }}-failover-consumer-scaler
   labels:
     {{- include "kafka-lab.labels" . | nindent 4 }}
 spec:
   scaleTargetRef:
-    name: {{ include "kafka-lab.fullname" . }}-consumer
-  minReplicaCount: {{ .Values.keda.minReplicas }}
-  maxReplicaCount: {{ .Values.keda.maxReplicas }}
-  cooldownPeriod: {{ .Values.keda.cooldownPeriod }}
+    name: {{ include "kafka-lab.fullname" . }}-failover-consumer
+  minReplicaCount: {{ .Values.failoverConsumer.keda.minReplicas }}
+  maxReplicaCount: {{ .Values.failoverConsumer.keda.maxReplicas }}
+  cooldownPeriod: {{ .Values.failoverConsumer.keda.cooldownPeriod }}
   triggers:
     - type: apache-kafka
       metadata:
         bootstrapServers: {{ .Values.kafka.brokers | quote }}
-        consumerGroup: {{ .Values.consumer.consumerGroup | default .Values.keda.kafka.consumerGroup }}
+        consumerGroup: {{ .Values.failoverConsumer.peerConsumerGroup }}
         topic: {{ .Values.kafka.topic }}
-        lagThreshold: {{ .Values.keda.kafka.lagThreshold | quote }}
+        lagThreshold: {{ .Values.failoverConsumer.keda.lagThreshold | quote }}
         offsetResetPolicy: {{ .Values.keda.kafka.offsetResetPolicy }}
         sasl: aws_msk_iam
         tls: enable

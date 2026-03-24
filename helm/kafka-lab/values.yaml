@@ -42,6 +42,7 @@ producer:
     tag: latest
   replicas: 1
   msgPerSec: 5
+  useMessageKey: false
   serviceAccount:
     roleName: producer
   resources:
@@ -59,6 +60,8 @@ consumer:
     repository: 123456789.dkr.ecr.us-east-1.amazonaws.com/consumer
     tag: latest
   replicas: 1
+  consumerGroup: ""        # Empty = use keda.kafka.consumerGroup as fallback
+  maxMsgPerSec: 0          # 0 = unlimited, >0 = rate limit per pod
   serviceAccount:
     roleName: consumer
   resources:
@@ -68,6 +71,16 @@ consumer:
     limits:
       cpu: 500m
       memory: 256Mi
+
+failoverConsumer:
+  enabled: false               # Enable per-region to activate automatic failover
+  peerConsumerGroup: ""        # The OTHER region's consumer group (e.g., finance-group-use1)
+  maxMsgPerSec: 0              # Rate limit (0 = unlimited)
+  keda:
+    minReplicas: 0             # Dormant — KEDA scales from 0 when peer lag grows
+    maxReplicas: 5
+    cooldownPeriod: 120        # Longer than primary to avoid flapping during recovery
+    lagThreshold: "50"         # Higher than primary — only wake on sustained outage
 
 api:
   enabled: true
