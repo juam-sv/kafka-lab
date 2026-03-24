@@ -33,7 +33,7 @@ data:
         }
 
         location /api/ {
-            proxy_pass http://{{ include "kafka-lab.fullname" . }}-api:{{ .Values.api.port }};
+            proxy_pass http://api:{{ .Values.api.port }};
             proxy_set_header Host $host;
             proxy_set_header X-Real-IP $remote_addr;
         }
