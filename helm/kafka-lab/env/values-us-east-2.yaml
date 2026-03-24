@@ -23,7 +23,7 @@ cache:
 
 # IRSA roles with -use2 suffix (IAM is global, names must be unique)
 producer:
-  enabled: true
+  enabled: false
   secretPath: "/poc/eks/producer"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/producer

@@ -40,7 +40,7 @@ producer:
       memory: 512Mi
 
 consumer:
-  enabled: true
+  enabled: false
   secretPath: "/poc/eks/consumer"
   image:
     repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/consumer
@@ -123,7 +123,7 @@ ingress:
   healthCheckId: ""  # TODO: populate after Terraform creates standalone health checks
 
 failoverConsumer:
-  enabled: true
+  enabled: false
   peerConsumerGroup: "finance-group-use2"
 
 keda:
