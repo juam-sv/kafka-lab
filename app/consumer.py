@@ -145,6 +145,7 @@ try:
                  VALUES (:1, :2, :3, :4, :5, :6, :7)""",
             (
                 data["transaction_id"],
+                data["transaction_id"],
                 data["source_account"],
                 data["target_account"],
                 data["amount"],
