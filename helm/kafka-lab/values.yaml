@@ -52,6 +52,14 @@ producer:
     limits:
       cpu: 250m
       memory: 128Mi
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    failureThreshold: 3
+  startupProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 10
 
 consumer:
   enabled: true
@@ -71,6 +79,14 @@ consumer:
     limits:
       cpu: 500m
       memory: 256Mi
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 15
+    failureThreshold: 3
+  startupProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 10
 
 failoverConsumer:
   enabled: false               # Enable per-region to activate automatic failover
@@ -99,10 +115,21 @@ api:
     limits:
       cpu: 500m
       memory: 256Mi
+  livenessProbe:
+    path: /health
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    failureThreshold: 3
   readinessProbe:
-    path: /docs
+    path: /ready
     initialDelaySeconds: 5
     periodSeconds: 10
+    failureThreshold: 3
+  startupProbe:
+    path: /health
+    initialDelaySeconds: 5
+    periodSeconds: 5
+    failureThreshold: 10
   service:
     type: ClusterIP
 
@@ -122,10 +149,16 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
+  livenessProbe:
+    path: /healthz
+    initialDelaySeconds: 5
+    periodSeconds: 15
+    failureThreshold: 3
   readinessProbe:
-    path: /
+    path: /healthz
     initialDelaySeconds: 5
     periodSeconds: 10
+    failureThreshold: 3
   service:
     type: ClusterIP
 
