@@ -180,6 +180,13 @@ ingress:
   regionalHostname: ""  # Per-region direct access (e.g., app-use1.getorlo.info)
   healthCheckId: ""  # Route53 health check ID (optional, created in Terraform)
 
+otel:
+  enabled: false
+  collectorEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4317"
+  collectorHttpEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4318"
+  insecure: "true"
+  environment: "poc"
+
 keda:
   enabled: true
   minReplicas: 1

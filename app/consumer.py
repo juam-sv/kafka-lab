@@ -6,7 +6,11 @@ import time
 
 import oracledb
 from confluent_kafka import Consumer
+from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
+from otel_setup import init_tracer
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
+
+tracer = init_tracer("consumer")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -83,7 +87,7 @@ if KAFKA_USE_MSK:
         "oauth_cb": oauth_cb,
     })
 
-c = Consumer(conf)
+c = ConfluentKafkaInstrumentor().instrument_consumer(Consumer(conf))
 c.subscribe(["financial.transactions"])
 logger.info(
     "Kafka consumer subscribed — broker=%s msk=%s group=%s",
@@ -138,26 +142,32 @@ try:
             data["transaction_id"], data["amount"], status,
         )
 
-        cursor.execute(
-            """MERGE INTO transactions t
-               USING (SELECT :1 AS transaction_id FROM dual) s
-               ON (t.transaction_id = s.transaction_id)
-               WHEN NOT MATCHED THEN
-                 INSERT (transaction_id, source_account, target_account,
-                         amount, currency, txn_type, status)
-                 VALUES (:1, :2, :3, :4, :5, :6, :7)""",
-            (
-                data["transaction_id"],
-                data["transaction_id"],
-                data["source_account"],
-                data["target_account"],
-                data["amount"],
-                data["currency"],
-                data["txn_type"],
-                status,
-            ),
-        )
-        conn.commit()
+        with tracer.start_as_current_span("db.insert_transaction", attributes={
+            "db.system": "oracle",
+            "db.operation": "INSERT",
+            "db.sql.table": "transactions",
+            "server.address": (DB_DSN or "").split(":")[0],
+        }):
+            cursor.execute(
+                """MERGE INTO transactions t
+                   USING (SELECT :1 AS transaction_id FROM dual) s
+                   ON (t.transaction_id = s.transaction_id)
+                   WHEN NOT MATCHED THEN
+                     INSERT (transaction_id, source_account, target_account,
+                             amount, currency, txn_type, status)
+                     VALUES (:1, :2, :3, :4, :5, :6, :7)""",
+                (
+                    data["transaction_id"],
+                    data["transaction_id"],
+                    data["source_account"],
+                    data["target_account"],
+                    data["amount"],
+                    data["currency"],
+                    data["txn_type"],
+                    status,
+                ),
+            )
+            conn.commit()
 
         _msg_count += 1
         _now = time.monotonic()
