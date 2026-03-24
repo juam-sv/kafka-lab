@@ -1,22 +1,20 @@
-{{- if .Values.consumer.enabled }}
+{{- if .Values.failoverConsumer.enabled }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "kafka-lab.fullname" . }}-consumer
+  name: {{ include "kafka-lab.fullname" . }}-failover-consumer
   labels:
     {{- include "kafka-lab.labels" . | nindent 4 }}
-    app.kubernetes.io/component: consumer
+    app.kubernetes.io/component: failover-consumer
 spec:
-  {{- if not .Values.keda.enabled }}
-  replicas: {{ .Values.consumer.replicas }}
-  {{- end }}
+  {{/* KEDA controls replicas — no static replicas field */}}
   selector:
     matchLabels:
-      {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "consumer") | nindent 6 }}
+      {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "failover-consumer") | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "consumer") | nindent 8 }}
+        {{- include "kafka-lab.selectorLabels" (dict "context" . "component" "failover-consumer") | nindent 8 }}
     spec:
       serviceAccountName: {{ .Values.consumer.serviceAccount.name | default "consumer" }}
       securityContext:
@@ -70,9 +68,9 @@ spec:
                   name: {{ include "kafka-lab.consumerSecretName" . }}
                   key: DB_WRITER_DSN
             - name: CONSUMER_GROUP
-              value: {{ .Values.consumer.consumerGroup | default .Values.keda.kafka.consumerGroup | quote }}
+              value: {{ .Values.failoverConsumer.peerConsumerGroup | quote }}
             - name: MAX_MSG_PER_SEC
-              value: {{ .Values.consumer.maxMsgPerSec | default 0 | quote }}
+              value: {{ .Values.failoverConsumer.maxMsgPerSec | default 0 | quote }}
           resources:
             {{- toYaml .Values.consumer.resources | nindent 12 }}
       volumes:

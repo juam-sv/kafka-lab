@@ -54,6 +54,8 @@ spec:
                   key: AWS_REGION
             - name: MSG_PER_SEC
               value: {{ .Values.producer.msgPerSec | quote }}
+            - name: USE_MESSAGE_KEY
+              value: {{ .Values.producer.useMessageKey | quote }}
           resources:
             {{- toYaml .Values.producer.resources | nindent 12 }}
       volumes:

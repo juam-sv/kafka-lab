@@ -11,6 +11,7 @@ KAFKA_BROKER = os.getenv("KAFKA_BROKER", "broker:9092")
 KAFKA_USE_MSK = os.getenv("KAFKA_USE_MSK", "false").lower() == "true"
 AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
 MSG_PER_SEC = int(os.getenv("MSG_PER_SEC", "5"))
+USE_MESSAGE_KEY = os.getenv("USE_MESSAGE_KEY", "false").lower() == "true"
 
 kafka_conf = {"bootstrap.servers": KAFKA_BROKER}
 
@@ -54,6 +55,7 @@ while True:
     p.produce(
         "financial.transactions",
         json.dumps(data).encode("utf-8"),
+        key=data["source_account"].encode("utf-8") if USE_MESSAGE_KEY else None,
         callback=delivery_report,
     )
     p.poll(0)
