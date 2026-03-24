@@ -141,7 +141,7 @@ ingress:
   healthCheckId: ""  # TODO: populate after Terraform creates standalone health checks
 
 failoverConsumer:
-  enabled: true
+  enabled: false
   peerConsumerGroup: "finance-group-use1"
 
 keda:
