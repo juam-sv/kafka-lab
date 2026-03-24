@@ -12,6 +12,7 @@ import redis
 from confluent_kafka import Producer
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from otel_setup import init_tracer
 from pydantic import BaseModel, Field
 
 logging.basicConfig(
@@ -22,9 +23,6 @@ logging.basicConfig(
 logger = logging.getLogger("api")
 
 app = FastAPI(root_path="/api")
-
-from otel_setup import init_tracer
-
 tracer = init_tracer(app)
 app.add_middleware(
     CORSMiddleware,
@@ -361,7 +359,9 @@ def list_transactions(
                 if cache:
                     try:
                         cache.set(count_cache_key, str(total), ex=CACHE_COUNT_TTL)
-                        logger.info(f"Count cache SET: {total} (TTL: {CACHE_COUNT_TTL}s)")
+                        logger.info(
+                            "Count cache SET: %s (TTL: %ds)", total, CACHE_COUNT_TTL,
+                        )
                     except Exception as e:
                         logger.error(f"Count cache storage error: {e}")
 

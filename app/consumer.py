@@ -7,9 +7,8 @@ import time
 import oracledb
 from confluent_kafka import Consumer
 from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
-from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
-
 from otel_setup import init_tracer
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_fixed
 
 tracer = init_tracer("consumer")
 

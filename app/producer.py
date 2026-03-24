@@ -8,7 +8,6 @@ from datetime import UTC, datetime
 
 from confluent_kafka import Producer
 from opentelemetry.instrumentation.confluent_kafka import ConfluentKafkaInstrumentor
-
 from otel_setup import init_tracer
 
 tracer = init_tracer("producer")
