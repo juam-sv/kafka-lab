@@ -44,7 +44,8 @@ class TokenBucket:
 
     def _refill(self):
         now = time.monotonic()
-        self.tokens = min(self.rate, self.tokens + (now - self._last_refill) * self.rate)
+        elapsed = now - self._last_refill
+        self.tokens = min(self.rate, self.tokens + elapsed * self.rate)
         self._last_refill = now
 
 
