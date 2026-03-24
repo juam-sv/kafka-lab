@@ -1,0 +1,47 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "kafka-lab.fullname" . }}-nginx-config
+  labels:
+    {{- include "kafka-lab.labels" . | nindent 4 }}
+    app.kubernetes.io/component: frontend
+data:
+  default.conf: |
+    server {
+        listen {{ .Values.frontend.port }};
+
+        gzip on;
+        gzip_types application/json text/plain text/css application/javascript;
+        gzip_min_length 256;
+
+        location = /healthz {
+            access_log off;
+            return 200 "ok\n";
+        }
+
+        location / {
+            root /usr/share/nginx/html;
+            index index.html;
+            try_files $uri $uri/ /index.html;
+        }
+
+        location /assets/ {
+            root /usr/share/nginx/html;
+            expires 1y;
+            add_header Cache-Control "public, immutable";
+        }
+
+        location /api/ {
+            proxy_pass http://{{ include "kafka-lab.fullname" . }}-api:{{ .Values.api.port }};
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+        }
+
+        {{- if .Values.otel.enabled }}
+        location /otel/ {
+            proxy_pass {{ .Values.otel.collectorHttpEndpoint }}/;
+        }
+        {{- end }}
+    }
+{{- end }}
