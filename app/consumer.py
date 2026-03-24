@@ -100,7 +100,7 @@ else:
 
 logger.info("Finance Consumer started — polling for messages")
 
-HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108
+HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108  # nosec B108
 _msg_count = 0
 _last_stats_time = time.monotonic()
 _stats_interval = 30

@@ -40,7 +40,7 @@ def delivery_report(err, msg):
         print(f"Sent Txn: {msg.value().decode('utf-8')}")
 
 
-HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108
+HEALTH_FILE = pathlib.Path("/tmp/healthy")  # noqa: S108  # nosec B108
 txn_types = ["TRANSFER", "PAYMENT", "WITHDRAWAL", "DEPOSIT"]
 currencies = ["USD", "BRL", "EUR"]
 
