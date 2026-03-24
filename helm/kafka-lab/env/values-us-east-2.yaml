@@ -124,7 +124,7 @@ frontend:
     type: ClusterIP
 
 jobs:
-  enabled: true
+  enabled: false
   ttlSecondsAfterFinished: 120
   createTopic:
     enabled: true
