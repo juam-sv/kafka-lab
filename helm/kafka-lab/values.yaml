@@ -177,6 +177,7 @@ jobs:
 ingress:
   enabled: false
   hostname: "app.getorlo.info"
+  regionalHostname: ""  # Per-region direct access (e.g., app-use1.getorlo.info)
   healthCheckId: ""  # Route53 health check ID (optional, created in Terraform)
 
 keda:
