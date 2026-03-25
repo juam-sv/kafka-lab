@@ -22,7 +22,7 @@ cache:
   ttl: 120
 
 producer:
-  enabled: false
+  enabled: true
   secretPath: "/poc/eks/producer"
   image:
     repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/producer
@@ -154,7 +154,7 @@ otel:
 keda:
   enabled: true
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 100
   cooldownPeriod: 60
   kafka:
     consumerGroup: finance-group
