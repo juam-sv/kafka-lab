@@ -41,14 +41,14 @@ producer:
       memory: 128Mi
 
 consumer:
-  enabled: false
+  enabled: true
   secretPath: "/poc/eks/consumer"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/consumer
     tag: "0.10.5"
-  replicas: 0
+  replicas: 1
   consumerGroup: "finance-group-use2"
-  maxMsgPerSec: 0
+  maxMsgPerSec: 1
   serviceAccount:
     roleName: consumer-use2
   resources:
@@ -155,7 +155,7 @@ otel:
 keda:
   enabled: true
   minReplicas: 1
-  maxReplicas: 10
+  maxReplicas: 100
   cooldownPeriod: 60
   kafka:
     consumerGroup: finance-group
