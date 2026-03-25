@@ -41,7 +41,7 @@ producer:
       memory: 128Mi
 
 consumer:
-  enabled: true
+  enabled: false
   secretPath: "/poc/eks/consumer"
   image:
     repository: 729107656172.dkr.ecr.us-east-2.amazonaws.com/consumer
@@ -144,6 +144,13 @@ ingress:
 failoverConsumer:
   enabled: false
   peerConsumerGroup: "finance-group-use1"
+
+otel:
+  enabled: false
+  collectorEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4317"
+  collectorHttpEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4318"
+  insecure: "true"
+  environment: "poc"
 
 keda:
   enabled: true

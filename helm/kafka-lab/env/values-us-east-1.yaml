@@ -22,7 +22,7 @@ cache:
   ttl: 120
 
 producer:
-  enabled: true
+  enabled: false
   secretPath: "/poc/eks/producer"
   image:
     repository: 729107656172.dkr.ecr.us-east-1.amazonaws.com/producer
@@ -123,7 +123,7 @@ frontend:
     type: ClusterIP
 
 jobs:
-  enabled: true
+  enabled: false
   ttlSecondsAfterFinished: 120
   createTopic:
     enabled: true
@@ -145,7 +145,7 @@ failoverConsumer:
   peerConsumerGroup: "finance-group-use2"
 
 otel:
-  enabled: true
+  enabled: false
   collectorEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4317"
   collectorHttpEndpoint: "http://signoz-otel-collector.platform.svc.cluster.local:4318"
   insecure: "true"
