@@ -18,6 +18,9 @@ KEDA auto-scaling is enabled for the consumer ({{ .Values.keda.minReplicas }}-{{
 Ingress is enabled:
   Dashboard: https://{{ .Values.ingress.hostname }}
   API docs:  https://{{ .Values.ingress.hostname }}/api/docs
+{{- if .Values.ingress.regionalHostname }}
+  Regional:  https://{{ .Values.ingress.regionalHostname }}
+{{- end }}
 {{- else }}
 To access the services via port-forward:
   kubectl port-forward svc/{{ include "kafka-lab.fullname" . }}-api {{ .Values.api.port }}:{{ .Values.api.port }}
